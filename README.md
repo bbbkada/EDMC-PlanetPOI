@@ -12,6 +12,6 @@ You can create poi¨s manually by entering coords or if at the location, save cu
 The EDMC gui will show saved POI´s for the current body when entering orbit, as soon as the dashboard shows coordinates.  
 You can use the gui checkboxes to enable/disable ingame overlay for individual Poi¨s.   
 
-![Screenshot](images/EDMC_Gui.png)
+![Screenshot](images/EDMC_gui.png)
 
 ![Screenshot](images/overlay.png)
