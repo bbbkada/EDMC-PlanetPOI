@@ -1,0 +1,52 @@
+[
+  {
+    "body": "HIP 36601 C 3 b",
+    "lat": -62.5,
+    "lon": -127.2,
+    "nickname": "Technetium shards",
+    "active": true,
+    "description": "Crystalline shards Tellerium"
+  },
+  {
+    "body": "Synuefe AA-P c22-7 5 c",
+    "lat": 28.97,
+    "lon": 133.48,
+    "description": "Polonium brain trees",
+    "active": true
+  },
+  {
+    "body": "HIP 36601 C 1 a",
+    "lat": -68.2,
+    "lon": 137.2,
+    "description": "Crystalline shards Polonium",
+    "active": true
+  },
+  {
+    "body": "HIP 36601 C 1 d",
+    "lat": -49.2,
+    "lon": 127.1,
+    "description": "Crystalline shards Ruthenium",
+    "active": true
+  },
+  {
+    "body": "HIP 36601 C 5 a",
+    "lat": 3.55,
+    "lon": 111.54,
+    "description": "Crystalline shards Technetium",
+    "active": true
+  },
+  {
+    "body": "Outotz LS-K d8-3 B 5 a",
+    "lat": -1.9216,
+    "lon": -145.7013,
+    "description": "Crystalline shards Yttrium",
+    "active": true
+  },
+  {
+    "body": "Outotz LS-K d8-3 B 5 c",
+    "lat": -62.4905,
+    "lon": 80.2426,
+    "description": "Crystalline shards Antimony",
+    "active": true
+  }
+]
