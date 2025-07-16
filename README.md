@@ -6,7 +6,8 @@ This plugin is still under development.
 To get ingame overlay, you need [EDMCOverlay](https://github.com/inorton/EDMCOverlay) installed.  
   
 in setting you can adjust max poi¨s to show, if body has multiple saved. Adjust the position, and choose if altitude is added to distance or not.
-You can create poi¨s manually by entering coords or if at the location, save current location.   
+You can create poi¨s manually by entering coords or if at the location, save current position.  
+The body text is case sensitive and need to have the same format as reported by EDMC.  
 ![Screenshot](images/EDMC_Settings.png)  
 
 The EDMC gui will show saved POI´s for the current body when entering orbit, as soon as the dashboard shows coordinates.  
