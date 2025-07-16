@@ -2,6 +2,8 @@
 
 Plugin for [EDMC](https://github.com/EDCD/EDMarketConnector) that lets you save positions on planets/bodys and help you navigate to them.  
 This plugin is still under development.  
+
+To get ingame overlay, you need [EDMCOverlay](https://github.com/inorton/EDMCOverlay) installed.  
   
 in setting you can adjust max poi¨s to show, if body has multiple saved. Adjust the position, and choose if altitude is added to distance or not.
 You can create poi¨s manually by entering coords or if at the location, save current location.   
