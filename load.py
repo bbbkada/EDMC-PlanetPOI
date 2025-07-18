@@ -85,10 +85,13 @@ def redraw_plugin_app():
 def journal_entry(cmdr, is_beta, system, station, entry, state):
     global CURRENT_SYSTEM
     
-    if (entry['event'] in ['FSDJump','StartUp'] and entry['StarSystem']):
+    if (entry['event'] in ['FSDJump','StartUp'] and entry.get('StarSystem')):
         print(f"PPOI: Arriving at {entry['StarSystem']}")
         CURRENT_SYSTEM = entry['StarSystem']
-        redraw_plugin_app()        
+        redraw_plugin_app()      
+    if not CURRENT_SYSTEM and entry.get('StarSystem'):
+        CURRENT_SYSTEM = entry['StarSystem']
+        redraw_plugin_app()
 
 def plugin_app(parent, cmdr=None, is_beta=None):
     global last_body, PLUGIN_PARENT
