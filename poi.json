@@ -48,5 +48,12 @@
     "lon": 80.2426,
     "description": "Crystalline shards Antimony",
     "active": true
+  },
+  {
+    "body": "HIP 12099 1 b",
+    "lat": -54.379154,
+    "lon": -50.358692,
+    "description": "Jameson crash site",
+    "active": true
   }
 ]

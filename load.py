@@ -1,6 +1,7 @@
 import functools
 import l10n
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import ttk
 import myNotebook as nb
 from config import config
@@ -24,6 +25,8 @@ LEFT_KEY = "planetpoi_overlay_leftmargin"
 ALT_VAR = None
 ROWS_VAR = None
 LEFT_VAR = None
+
+CURRENT_SYSTEM = None
 
 # latest position för "Save current location"
 last_lat, last_lon, last_body = None, None, None
@@ -67,6 +70,7 @@ def plugin_start3(plugin_dir: str) -> str:
     overlay.set_overlay_settings(ROWS_VAR.get(), LEFT_VAR.get())
     return "PlanetPOI"
 
+
 def redraw_plugin_app():
     global PLUGIN_PARENT
     if PLUGIN_PARENT:
@@ -78,13 +82,19 @@ def redraw_plugin_app():
             print("PlanetPOI: redraw_plugin_app failed (parent destroyed?):", ex)
             PLUGIN_PARENT = None
 
-import tkinter as tk
-import tkinter.font as tkfont
+def journal_entry(cmdr, is_beta, system, station, entry, state):
+    global CURRENT_SYSTEM
+    
+    if (entry['event'] in ['FSDJump','StartUp'] and entry['StarSystem']):
+        print(f"PPOI: Arriving at {entry['StarSystem']}")
+        CURRENT_SYSTEM = entry['StarSystem']
+        redraw_plugin_app()        
 
 def plugin_app(parent, cmdr=None, is_beta=None):
     global last_body, PLUGIN_PARENT
     PLUGIN_PARENT = parent
-
+    matching_system_pois = None
+    
     # Liten font för POI-listan
     small_font = tkfont.Font(size=9)  # Justera till 8 eller 10 vid behov
 
@@ -99,7 +109,32 @@ def plugin_app(parent, cmdr=None, is_beta=None):
     current_body = last_body
 
     if not current_body:
-        tk.Label(frame, text=plugin_tl("PPOI: No current planet/body")).grid(row=row, column=0, sticky="w")
+        if CURRENT_SYSTEM:
+            matching_system_pois = [poi for poi in ALL_POIS if poi.get("body", "").startswith(CURRENT_SYSTEM)]
+        
+        if matching_system_pois:
+            tk.Label(frame, text=plugin_tl(f"PPOI: Poi's in {CURRENT_SYSTEM}")).grid(row=row, column=0, sticky="w",padx=2, pady=2)
+            row += 1
+            for idx, poi in enumerate(matching_system_pois):
+                desc = poi.get("description", "")
+                if not desc:
+                    lat = poi.get("lat")
+                    lon = poi.get("lon")
+                    if lat is not None and lon is not None:
+                        desc = f"{lat:.4f}, {lon:.4f}"
+                    else:
+                        desc = "(No description)"
+                
+                poi_desc = poi.get("body", "")[len(CURRENT_SYSTEM) +1 :] + " - " + desc
+                tk.Label(
+                    frame,
+                    text=poi_desc,
+                    font=small_font
+                ).grid(row=row, column=0, sticky="w", padx=2, pady=0)
+                row += 1
+        else:    
+            tk.Label(frame, text=plugin_tl(f"PPOI: No poi's in system")).grid(row=row, column=0, sticky="w")
+        
         theme.update(frame)
         theme.update(parent)
         return frame
@@ -411,21 +446,20 @@ def prefs_changed(cmdr, is_beta):
     redraw_plugin_app()
 
 def dashboard_entry(cmdr, is_beta, entry):
-    global last_lat, last_lon, last_body
+    global last_lat, last_lon, last_body,CURRENT_SYSTEM
 
     altitude = entry.get("Altitude") or 0
     lat = entry.get("Latitude")
     lon = entry.get("Longitude")
     bodyname = entry.get("BodyName")
     planet_radius = entry.get("PlanetRadius")
- 
+    print(f"dash:{entry}")
     if lat is not None and lon is not None and bodyname:
         prev_body = last_body
         last_lat, last_lon, last_body = lat, lon, bodyname
         if str(prev_body) != str(bodyname):
             redraw_plugin_app()
-
-
+ 
     if bodyname is None and last_body:
         last_body = None
         overlay.clear_all_poi_rows()
