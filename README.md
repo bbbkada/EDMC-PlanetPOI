@@ -14,7 +14,7 @@ The EDMC gui will show bodynames that have poi's and their description when ente
 
 ![Screenshot](images/EDMC_system.png)
 
-The EDMC gui will show saved POI´s for the current body when entering orbit, as soon as the dashboard shows coordinates.  
+As soon as the dashboard shows coordinates, the ui will switch to body mode and only show the poi's for the body.  
 You can use the gui checkboxes to enable/disable ingame overlay for individual Poi¨s.   
 
 ![Screenshot](images/EDMC_gui.png)
