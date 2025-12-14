@@ -13,6 +13,7 @@ from AutoCompleter import AutoCompleter
 plugin_tl = functools.partial(l10n.translations.tl, context=__file__)
 
 PLUGIN_PARENT = None
+PLUGIN_FRAME = None  # Persistent frame for dynamic updates
 
 POI_FILE = os.path.join(os.path.dirname(__file__), "poi.json")
 ALL_POIS = []
@@ -76,22 +77,19 @@ def save_pois():
 def plugin_start3(plugin_dir: str) -> str:
     global ALT_VAR, ROWS_VAR, LEFT_VAR, ALL_POIS
     # set default values if no config exists
-    try:
-        alt_val = config.get_int(ALT_KEY)
-    except Exception:
-        alt_val = 0
+    alt_val = config.get_int(ALT_KEY)
     ALT_VAR = tk.BooleanVar(value=bool(alt_val))
 
-    try:
-        rows_val = config.get_int(ROWS_KEY)
-    except Exception:
+    rows_val = config.get_int(ROWS_KEY)
+    if rows_val == 0:  # Default value not set
         rows_val = 10
+        config.set(ROWS_KEY, rows_val)
     ROWS_VAR = tk.IntVar(value=rows_val)
 
-    try:
-        left_val = config.get_int(LEFT_KEY)
-    except Exception:
+    left_val = config.get_int(LEFT_KEY)
+    if left_val == 0:  # Default value not set
         left_val = 500
+        config.set(LEFT_KEY, left_val)
     LEFT_VAR = tk.IntVar(value=left_val)
    
     load_pois()
@@ -233,16 +231,19 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
         system_entry.focus()
 
 def redraw_plugin_app():
-    global PLUGIN_PARENT
-    if PLUGIN_PARENT:
+    global PLUGIN_FRAME
+    if PLUGIN_FRAME:
         try:
-            for widget in PLUGIN_PARENT.winfo_children():
+            # Only destroy children of the persistent frame, not the frame itself
+            for widget in PLUGIN_FRAME.winfo_children():
                 widget.destroy()
-            plugin_app(PLUGIN_PARENT)
-            theme.update(PLUGIN_PARENT)
+            # Rebuild content inside the same frame
+            build_plugin_content(PLUGIN_FRAME)
+            # Apply theme to updated widgets
+            PLUGIN_FRAME.update_idletasks()
+            theme.update(PLUGIN_FRAME)
         except Exception as ex:
-            print("PlanetPOI: redraw_plugin_app failed (parent destroyed?):", ex)
-            PLUGIN_PARENT = None
+            print("PlanetPOI: redraw_plugin_app failed:", ex)
 
 def journal_entry(cmdr, is_beta, system, station, entry, state):
     global CURRENT_SYSTEM
@@ -255,25 +256,19 @@ def journal_entry(cmdr, is_beta, system, station, entry, state):
         CURRENT_SYSTEM = entry['StarSystem']
         redraw_plugin_app()
 
-def plugin_app(parent, cmdr=None, is_beta=None):
-    global last_body, PLUGIN_PARENT
-    PLUGIN_PARENT = parent
-    matching_system_pois = None
-    
+def build_plugin_content(frame):
+    """Build/rebuild the content inside the persistent plugin frame."""
     # Liten font för POI-listan
     small_font = tkfont.Font(size=9)  # Justera till 8 eller 10 vid behov
-
-    parent.grid_columnconfigure(0, weight=1)
-        
-    frame = tk.Frame(parent)
-    frame.grid(row=0, column=0, columnspan=2, sticky="nsew")
+    
     frame.grid_columnconfigure(0, weight=1)
     row = 0
 
-    print("plugin_app last_body:", last_body)
+    print("build_plugin_content last_body:", last_body)
     current_body = last_body
 
     if not current_body:
+        matching_system_pois = []
         if CURRENT_SYSTEM:
             matching_system_pois = [poi for poi in ALL_POIS if poi.get("body", "").startswith(CURRENT_SYSTEM)]
         
@@ -285,6 +280,7 @@ def plugin_app(parent, cmdr=None, is_beta=None):
             tk.Label(header_frame, text=plugin_tl(f"PPOI: Poi's in {CURRENT_SYSTEM}")).grid(row=0, column=0, sticky="w")
             tk.Button(header_frame, text="➕", command=lambda: show_add_poi_dialog(frame, CURRENT_SYSTEM), 
                      width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e")
+            theme.update(header_frame)  # Apply theme to header_frame and its children
             row += 1
             for idx, poi in enumerate(matching_system_pois):
                 desc = poi.get("description", "")
@@ -311,10 +307,9 @@ def plugin_app(parent, cmdr=None, is_beta=None):
             tk.Label(header_frame, text=plugin_tl(f"PPOI: No poi's in system")).grid(row=0, column=0, sticky="w")
             tk.Button(header_frame, text="➕", command=lambda: show_add_poi_dialog(frame, CURRENT_SYSTEM), 
                      width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e")
+            theme.update(header_frame)  # Apply theme to header_frame and its children
         
-        theme.update(frame)
-        theme.update(parent)
-        return frame
+        return
 
     matching_pois = [poi for poi in ALL_POIS if poi.get("body") == current_body]
 
@@ -331,18 +326,14 @@ def plugin_app(parent, cmdr=None, is_beta=None):
     
     tk.Button(header_frame, text="➕", command=lambda: show_add_poi_dialog(frame, current_body), 
              width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e")
+    theme.update(header_frame)  # Apply theme to header_frame and its children
     row += 1
 
     for idx, poi in enumerate(matching_pois):
         active_var = tk.BooleanVar(value=poi.get("active", True))
         cb = tk.Checkbutton(
             frame,
-            variable=active_var,
-            font=small_font,
-            height=1,
-            padx=0,
-            pady=0,
-            borderwidth=0
+            variable=active_var
         )
         cb.grid(row=row, column=0, sticky="w", padx=2, pady=0)
 
@@ -361,12 +352,8 @@ def plugin_app(parent, cmdr=None, is_beta=None):
         ).grid(row=row, column=1, sticky="w", padx=2, pady=0)
 
         def on_toggle(i=idx, v=active_var):
-            print("matching_pois id:", id(matching_pois[i]))
-            for poi in ALL_POIS:
-                print("ALL_POIS id:", id(poi))
             matching_pois[i]["active"] = v.get()
             save_pois()
-            # overlay.show_poi_rows()
 
         active_var.trace_add('write', lambda *args, i=idx, v=active_var: on_toggle(i, v))
         row += 1
@@ -377,9 +364,24 @@ def plugin_app(parent, cmdr=None, is_beta=None):
             text=plugin_tl("PPOI: No POIs for this body")
         ).grid(row=row, column=0, columnspan=2, sticky="w", padx=2)
 
-    theme.update(frame)
+
+def plugin_app(parent, cmdr=None, is_beta=None):
+    """Create the persistent plugin frame and return it."""
+    global PLUGIN_PARENT, PLUGIN_FRAME
+    PLUGIN_PARENT = parent
+    
+    # Create persistent frame - use tk.Frame as root, with tk widgets inside
+    PLUGIN_FRAME = tk.Frame(parent)
+    PLUGIN_FRAME.grid(row=0, column=0, columnspan=2, sticky="nsew")
+    
+    # Build initial content
+    build_plugin_content(PLUGIN_FRAME)
+    
+    # Apply theme - makes tk widgets get proper theme colors
+    theme.update(PLUGIN_FRAME)
     theme.update(parent)
-    return frame
+    
+    return PLUGIN_FRAME
 
 
 
@@ -497,61 +499,6 @@ def build_plugin_ui(frame):
         desc_var.trace_add('write', lambda *args, i=idx, v=desc_var, btn=savebtn: on_desc_change(i=i, v=v, btn=btn))
         savebtn.config(command=lambda i=idx, v=desc_var, btn=savebtn: save_desc(i, v, frame, btn))
         row += 1
-
-    sep = ttk.Separator(frame, orient='horizontal')
-    sep.grid(row=row, column=0, columnspan=7, sticky="ew", pady=8)
-    row += 1
-
-    nb.Label(frame, text=plugin_tl("Add new manual POI:"), font=('TkDefaultFont', 10, 'bold')).grid(row=row, column=0, columnspan=7, sticky="w")
-    row += 1
-
-    body_entry = nb.EntryMenu(frame, width=8)
-    body_entry.grid(row=row, column=0, sticky="w", padx=(2,2))
-    lat_entry = nb.EntryMenu(frame, width=16)
-    lat_entry.grid(row=row, column=1, sticky="w", padx=(2,2))
-    lon_entry = nb.EntryMenu(frame, width=16)
-    lon_entry.grid(row=row, column=2, sticky="w", padx=(2,2))
-    desc_entry = nb.EntryMenu(frame, width=28)
-    desc_entry.grid(row=row, column=3, sticky="w", padx=(2,2))
-
-    addbtn = nb.Button(
-        frame, text=plugin_tl("Add"),
-        command=lambda: add_manual_poi(body_entry, lat_entry, lon_entry, desc_entry, frame), width=7
-    )
-    addbtn.grid(row=row, column=4, columnspan=2,sticky="w", padx=(2,2))
-
-    nb.Label(frame, text=plugin_tl("Body Name")).grid(row=row+1, column=0, sticky="w")
-    nb.Label(frame, text=plugin_tl("Latitude")).grid(row=row+1, column=1, sticky="w")
-    nb.Label(frame, text=plugin_tl("Longitude")).grid(row=row+1, column=2, sticky="w")
-    nb.Label(frame, text=plugin_tl("Description")).grid(row=row+1, column=3, columnspan=3,sticky="w")
-
-    row += 2
-
-    # ----------- Save current position-rad, divider och rubrik -----------
-    global last_lat, last_lon, last_body
-    if last_lat is not None and last_lon is not None and last_body:
-        sep2 = ttk.Separator(frame, orient='horizontal')
-        sep2.grid(row=row, column=0, columnspan=7, sticky="ew", pady=(16, 2))
-        row += 1
-
-        nb.Label(
-            frame,
-            text=plugin_tl("Save current position") +
-                 f" ({plugin_tl('Current')}: {last_body} {round(last_lat,5)}, {round(last_lon,5)})",
-            font=('TkDefaultFont', 10, 'bold')
-        ).grid(row=row, column=0, columnspan=7, sticky="w")
-        row += 1
-
-        savebtn = nb.Button(
-            frame, text=plugin_tl("Save current position"),
-            command=lambda: save_current_poi(frame)
-        )
-        savebtn.grid(row=row, column=0, columnspan=2, sticky="w")
-
-        row += 1
-        info_label = nb.Label(frame, text="")
-        info_label.grid(row=row, column=0, columnspan=7, sticky="w")
-        frame.info_label = info_label  # För status/meddelande om du vill
 
     # ------ Grid-kolumnjustering för snygg layout ------
     frame.grid_columnconfigure(0, minsize=22, weight=0)     # Active (supersmal)
