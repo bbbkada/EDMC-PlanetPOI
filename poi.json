@@ -48,6 +48,7 @@
     "lon": 80.2426,
     "description": "Crystalline shards Antimony",
     "active": true
+<<<<<<< HEAD
   },
   {
     "body": "HR 3230 3 a a",
@@ -83,5 +84,7 @@
     "lon": 114.773956,
     "description": "Hot Site",
     "active": true
+=======
+>>>>>>> 47cb3d85e511b618672e4cc52caa2cd9d2233da6
   }
 ]
