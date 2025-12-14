@@ -11,7 +11,7 @@
     "body": "Synuefe AA-P c22-7 5 c",
     "lat": 28.97,
     "lon": 133.48,
-    "description": "Polonium brain trees",
+    "description": "Brain trees Polonium",
     "active": true
   },
   {
@@ -50,10 +50,38 @@
     "active": true
   },
   {
-    "body": "HIP 12099 1 b",
-    "lat": -54.379154,
-    "lon": -50.358692,
-    "description": "Jameson crash site",
+    "body": "HR 3230 3 a a",
+    "lat": 31.7794,
+    "lon": -118.626,
+    "description": "Brain trees Selenium",
+    "active": true
+  },
+  {
+    "body": "HR 3230 3 a a",
+    "lat": 32.247139,
+    "lon": -118.592766,
+    "description": "Selenium 2",
+    "active": true
+  },
+  {
+    "body": "Orrere 2 b",
+    "lat": 43.8214,
+    "lon": -173.98,
+    "description": "Crashed Anaconda",
+    "active": true
+  },
+  {
+    "body": "HIP 12248 5 a",
+    "lat": 10.53,
+    "lon": -45.13,
+    "description": "Mystery POI",
+    "active": true
+  },
+  {
+    "body": "HIP 87621 2 a",
+    "lat": -51.166302,
+    "lon": 114.773956,
+    "description": "Hot Site",
     "active": true
   }
 ]

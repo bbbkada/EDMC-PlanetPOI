@@ -19,13 +19,13 @@ try:
 except ImportError:
     config = {}
 
-ROW_Y_START = 2        # pixel-y för första raden
-ROW_Y_STEP = 24        # avstånd mellan rader
+ROW_Y_START = 2        # pixel-y for first row
+ROW_Y_STEP = 24        # distance between rows
 
 OVERLAY_MAX_ROWS = 10
 OVERLAY_LEFT_MARGIN = 500
 
-# Ny helper för overlay-settings
+# New helper for overlay settings
 def get_overlay_settings():
     try:
         max_rows = int(config.get_int("planetpoi_max_overlay_rows", 5))
@@ -45,8 +45,8 @@ def set_overlay_settings(rows, margin):
 def show_poi_rows(poi_texts, color="#ff7100"):
     global OVERLAY_MAX_ROWS, OVERLAY_LEFT_MARGIN
     """
-    Visar en rad i overlay för varje POI (max-rader och vänsterjustering från settings).
-    Rensar överflödiga gamla rader.
+    Shows one row in overlay for each POI (max rows and left alignment from settings).
+    Clears excess old rows.
     """
     if not ensure_overlay():
         return
@@ -65,7 +65,7 @@ def show_poi_rows(poi_texts, color="#ff7100"):
             "large"
         )
 
-    # Rensa gamla overlays om det blivit färre rader än tidigare
+    # Clear old overlays if there are fewer rows than before
     for idx in range(len(poi_texts), OVERLAY_MAX_ROWS):
         y_pos = ROW_Y_START + idx * ROW_Y_STEP
         message_id = f"poi_{idx}"
@@ -79,7 +79,7 @@ def show_poi_rows(poi_texts, color="#ff7100"):
 
 def show_message(message_id, text, color="#ff7100", x=2, y=2, size=8, font_weight="normal"):
     """
-    Skicka valfri overlay-rad (för avancerade custom overlays).
+    Send any overlay row (for advanced custom overlays).
     """
     if ensure_overlay():
         this.overlay.send_message(
@@ -93,7 +93,7 @@ def show_message(message_id, text, color="#ff7100", x=2, y=2, size=8, font_weigh
 def clear_all_poi_rows():
     global OVERLAY_MAX_ROWS, OVERLAY_LEFT_MARGIN
     """
-    Rensar alla POI-rader i overlay.
+    Clears all POI rows in overlay.
     """
     for idx in range(OVERLAY_MAX_ROWS):
         y_pos = ROW_Y_START + idx * ROW_Y_STEP
@@ -116,7 +116,7 @@ def ensure_overlay():
         this.overlay.connect()
         this.overlay_available = True
         if hasattr(this, "_overlay_warned"):
-            del this._overlay_warned   # Nollställ varning om vi lyckades ansluta igen!
+            del this._overlay_warned   # Reset warning if we successfully reconnected!
         print("EDMCOverlay: Reconnected successfully!")
         return True
     except Exception as e:

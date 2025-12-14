@@ -9,7 +9,7 @@ from theme import theme
 import json
 import os
 import overlay  # overlay.py i samma katalog
-
+from AutoCompleter import AutoCompleter
 plugin_tl = functools.partial(l10n.translations.tl, context=__file__)
 
 PLUGIN_PARENT = None
@@ -30,6 +30,34 @@ CURRENT_SYSTEM = None
 
 # latest position för "Save current location"
 last_lat, last_lon, last_body = None, None, None
+
+def format_body_name(body_name):
+    """
+    Format body name according to Elite Dangerous naming rules.
+    Examples: 
+    - "c1ab" -> "C 1 a b"
+    - "2a" -> "2 a"
+    - "B3CD" -> "B 3 c d"
+    """
+    if not body_name:
+        return ""
+    
+    # Remove all whitespace
+    body_name = body_name.replace(" ", "").strip()
+    if not body_name:
+        return ""
+    
+    result = []
+    for i, char in enumerate(body_name):
+        if i == 0:
+            # First character: uppercase if letter, otherwise keep as-is
+            result.append(char.upper() if char.isalpha() else char)
+        else:
+            # Add space before character, lowercase if letter
+            result.append(" ")
+            result.append(char.lower() if char.isalpha() else char)
+    
+    return "".join(result)
 
 def load_pois():
     global ALL_POIS
@@ -71,6 +99,139 @@ def plugin_start3(plugin_dir: str) -> str:
     return "PlanetPOI"
 
 
+def show_add_poi_dialog(parent_frame, prefill_body=None):
+    """Show dialog to add a new POI"""
+    dialog = tk.Toplevel(parent_frame)
+    dialog.title("Add New POI")
+    dialog.geometry("480x360")
+    dialog.transient(parent_frame)
+    dialog.grab_set()
+    
+    # Center the dialog
+    dialog.update_idletasks()
+    x = parent_frame.winfo_rootx() + (parent_frame.winfo_width() // 2) - (dialog.winfo_width() // 2)
+    y = parent_frame.winfo_rooty() + (parent_frame.winfo_height() // 2) - (dialog.winfo_height() // 2)
+    dialog.geometry(f"+{x}+{y}")
+    
+    # Determine auto-fill values
+    auto_system = CURRENT_SYSTEM or ""
+    auto_body = ""
+    auto_lat = ""
+    auto_lon = ""
+    
+    # If we have a current body position, extract system and body parts
+    if last_body and last_lat is not None and last_lon is not None:
+        # last_body is full name like "HIP 87621 2 a"
+        # Try to extract system and body
+        if auto_system and last_body.startswith(auto_system):
+            # Body is everything after the system name
+            auto_body = last_body[len(auto_system):].strip()
+            auto_lat = str(last_lat)
+            auto_lon = str(last_lon)
+    
+    # If prefill_body provided (from button click), use it to determine system/body
+    if prefill_body:
+        if auto_system and prefill_body.startswith(auto_system):
+            auto_body = prefill_body[len(auto_system):].strip()
+        else:
+            # If prefill_body doesn't match current system, just use it as-is in system field
+            auto_system = prefill_body
+            auto_body = ""
+    
+    # Configure dialog grid
+    dialog.grid_columnconfigure(1, weight=1)
+    
+    row = 0
+    tk.Label(dialog, text="System Name:").grid(row=row, column=0, sticky="w", padx=10, pady=5)
+    
+    # Use AutoCompleter for system name with Spansh API
+    system_entry = AutoCompleter(dialog, "System Name", width=30)
+    system_entry.grid(row=row, column=1, padx=(10, 20), pady=5, sticky="ew")
+    
+    # Set the initial value if we have one
+    if auto_system:
+        system_entry.set_text(auto_system, placeholder_style=False)
+    
+    system_var = system_entry.var
+    row += 1
+    # AutoCompleter uses two rows (one for entry, one for dropdown list when shown)
+    row += 1
+    
+    tk.Label(dialog, text="Body Name:").grid(row=row, column=0, sticky="w", padx=10, pady=5)
+    body_var = tk.StringVar(value=auto_body)
+    body_entry = tk.Entry(dialog, textvariable=body_var, width=30)
+    body_entry.grid(row=row, column=1, padx=(10, 20), pady=5, sticky="ew")
+    row += 1
+    
+    tk.Label(dialog, text="Latitude:").grid(row=row, column=0, sticky="w", padx=10, pady=5)
+    lat_var = tk.StringVar(value=auto_lat)
+    lat_entry = tk.Entry(dialog, textvariable=lat_var, width=30)
+    lat_entry.grid(row=row, column=1, padx=(10, 20), pady=5, sticky="ew")
+    row += 1
+    
+    tk.Label(dialog, text="Longitude:").grid(row=row, column=0, sticky="w", padx=10, pady=5)
+    lon_var = tk.StringVar(value=auto_lon)
+    lon_entry = tk.Entry(dialog, textvariable=lon_var, width=30)
+    lon_entry.grid(row=row, column=1, padx=(10, 20), pady=5, sticky="ew")
+    row += 1
+    
+    tk.Label(dialog, text="Description:").grid(row=row, column=0, sticky="w", padx=10, pady=5)
+    desc_var = tk.StringVar()
+    desc_entry = tk.Entry(dialog, textvariable=desc_var, width=30)
+    desc_entry.grid(row=row, column=1, padx=(10, 20), pady=5, sticky="ew")
+    row += 1
+    
+    status_label = tk.Label(dialog, text="", fg="red")
+    status_label.grid(row=row, column=0, columnspan=2, pady=(2, 5))
+    row += 1
+    
+    def save_and_close():
+        system = system_var.get().strip()
+        body = body_var.get().strip()
+        
+        if not system:
+            status_label.config(text="System name is required!")
+            return
+        
+        # Format body name with proper spacing and capitalization
+        if body:
+            formatted_body = format_body_name(body)
+            full_body = f"{system} {formatted_body}"
+        else:
+            full_body = system
+            
+        try:
+            lat = float(lat_var.get().replace(",", "."))
+            lon = float(lon_var.get().replace(",", "."))
+        except ValueError:
+            status_label.config(text="Invalid latitude or longitude!")
+            return
+        
+        desc = desc_var.get().strip()
+        ALL_POIS.append({
+            "body": full_body,
+            "lat": lat,
+            "lon": lon,
+            "description": desc,
+            "active": True
+        })
+        save_pois()
+        dialog.destroy()
+        redraw_plugin_app()
+    
+    # Buttons aligned to the right
+    button_frame = tk.Frame(dialog)
+    button_frame.grid(row=row, column=1, sticky="e", padx=(10, 20), pady=(5, 15))
+    
+    tk.Button(button_frame, text="Cancel", command=dialog.destroy, width=10).pack(side="left", padx=(0, 5))
+    tk.Button(button_frame, text="Save", command=save_and_close, width=10).pack(side="left")
+    
+    # Focus on body name if system is pre-filled, otherwise focus on system
+    if auto_system:
+        body_entry.focus()
+    else:
+        system_entry.focus()
+
 def redraw_plugin_app():
     global PLUGIN_PARENT
     if PLUGIN_PARENT:
@@ -78,6 +239,7 @@ def redraw_plugin_app():
             for widget in PLUGIN_PARENT.winfo_children():
                 widget.destroy()
             plugin_app(PLUGIN_PARENT)
+            theme.update(PLUGIN_PARENT)
         except Exception as ex:
             print("PlanetPOI: redraw_plugin_app failed (parent destroyed?):", ex)
             PLUGIN_PARENT = None
@@ -103,9 +265,9 @@ def plugin_app(parent, cmdr=None, is_beta=None):
 
     parent.grid_columnconfigure(0, weight=1)
         
-    frame = tk.Frame(parent, highlightthickness=2)
+    frame = tk.Frame(parent)
     frame.grid(row=0, column=0, columnspan=2, sticky="nsew")
-    frame.grid_columnconfigure(1, weight=1)
+    frame.grid_columnconfigure(0, weight=1)
     row = 0
 
     print("plugin_app last_body:", last_body)
@@ -116,7 +278,13 @@ def plugin_app(parent, cmdr=None, is_beta=None):
             matching_system_pois = [poi for poi in ALL_POIS if poi.get("body", "").startswith(CURRENT_SYSTEM)]
         
         if matching_system_pois:
-            tk.Label(frame, text=plugin_tl(f"PPOI: Poi's in {CURRENT_SYSTEM}")).grid(row=row, column=0, sticky="w",padx=2, pady=2)
+            header_frame = tk.Frame(frame)
+            header_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
+            header_frame.grid_columnconfigure(0, weight=1)
+            
+            tk.Label(header_frame, text=plugin_tl(f"PPOI: Poi's in {CURRENT_SYSTEM}")).grid(row=0, column=0, sticky="w")
+            tk.Button(header_frame, text="➕", command=lambda: show_add_poi_dialog(frame, CURRENT_SYSTEM), 
+                     width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e")
             row += 1
             for idx, poi in enumerate(matching_system_pois):
                 desc = poi.get("description", "")
@@ -136,7 +304,13 @@ def plugin_app(parent, cmdr=None, is_beta=None):
                 ).grid(row=row, column=0, sticky="w", padx=2, pady=0)
                 row += 1
         else:    
-            tk.Label(frame, text=plugin_tl(f"PPOI: No poi's in system")).grid(row=row, column=0, sticky="w")
+            header_frame = tk.Frame(frame)
+            header_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
+            header_frame.grid_columnconfigure(0, weight=1)
+            
+            tk.Label(header_frame, text=plugin_tl(f"PPOI: No poi's in system")).grid(row=0, column=0, sticky="w")
+            tk.Button(header_frame, text="➕", command=lambda: show_add_poi_dialog(frame, CURRENT_SYSTEM), 
+                     width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e")
         
         theme.update(frame)
         theme.update(parent)
@@ -144,12 +318,19 @@ def plugin_app(parent, cmdr=None, is_beta=None):
 
     matching_pois = [poi for poi in ALL_POIS if poi.get("body") == current_body]
 
-    # Rubrik
+    # Header with add button
+    header_frame = tk.Frame(frame)
+    header_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
+    header_frame.grid_columnconfigure(0, weight=1)
+    
     tk.Label(
-        frame,
+        header_frame,
         text=f"PPOI: {current_body}",
         font=('TkDefaultFont', 10, 'bold')
-    ).grid(row=row, column=0, columnspan=2, sticky="w", padx=2, pady=2)
+    ).grid(row=0, column=0, sticky="w")
+    
+    tk.Button(header_frame, text="➕", command=lambda: show_add_poi_dialog(frame, current_body), 
+             width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e")
     row += 1
 
     for idx, poi in enumerate(matching_pois):
