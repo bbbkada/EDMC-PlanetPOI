@@ -3,7 +3,6 @@
     "body": "HIP 36601 C 3 b",
     "lat": -62.5,
     "lon": -127.2,
-    "nickname": "Technetium shards",
     "active": true,
     "description": "Crystalline shards Tellerium"
   },
@@ -48,7 +47,6 @@
     "lon": 80.2426,
     "description": "Crystalline shards Antimony",
     "active": true
-<<<<<<< HEAD
   },
   {
     "body": "HR 3230 3 a a",
@@ -77,14 +75,5 @@
     "lon": -45.13,
     "description": "Mystery POI",
     "active": true
-  },
-  {
-    "body": "HIP 87621 2 a",
-    "lat": -51.166302,
-    "lon": 114.773956,
-    "description": "Hot Site",
-    "active": true
-=======
->>>>>>> 47cb3d85e511b618672e4cc52caa2cd9d2233da6
   }
 ]
