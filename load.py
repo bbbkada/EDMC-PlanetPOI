@@ -37,6 +37,7 @@ def format_body_name(body_name):
     Format body name according to Elite Dangerous naming rules.
     Examples: 
     - "c1ab" -> "C 1 a b"
+    - "c11b" -> "C 11 b"
     - "2a" -> "2 a"
     - "B3CD" -> "B 3 c d"
     """
@@ -54,8 +55,11 @@ def format_body_name(body_name):
             # First character: uppercase if letter, otherwise keep as-is
             result.append(char.upper() if char.isalpha() else char)
         else:
-            # Add space before character, lowercase if letter
-            result.append(" ")
+            prev_char = body_name[i-1]
+            # Add space UNLESS both current and previous are digits (to keep numbers together like "11")
+            if not (prev_char.isdigit() and char.isdigit()):
+                result.append(" ")
+            # Lowercase if letter
             result.append(char.lower() if char.isalpha() else char)
     
     return "".join(result)
@@ -75,7 +79,7 @@ def save_pois():
         json.dump(ALL_POIS, f, indent=2)
 
 def plugin_start3(plugin_dir: str) -> str:
-    global ALT_VAR, ROWS_VAR, LEFT_VAR, ALL_POIS
+    global ALT_VAR, ROWS_VAR, LEFT_VAR, ALL_POIS, CURRENT_SYSTEM, last_lat, last_lon, last_body
     # set default values if no config exists
     alt_val = config.get_int(ALT_KEY)
     ALT_VAR = tk.BooleanVar(value=bool(alt_val))
@@ -94,6 +98,16 @@ def plugin_start3(plugin_dir: str) -> str:
    
     load_pois()
     overlay.set_overlay_settings(ROWS_VAR.get(), LEFT_VAR.get())
+    
+    # ============== SIMULERING - HÅRDKODADE VÄRDEN ==============
+    # Kommentera ut dessa rader för att inaktivera simuleringen
+    CURRENT_SYSTEM = "HIP 36601"
+    last_body = "HIP 36601 C 11 b"
+    last_lat = -62.5  # Samma som POI:n "Crystalline shards Tellerium"
+    last_lon = -127.2
+    print(f"PPOI SIMULATION: System={CURRENT_SYSTEM}, Body={last_body}, Lat={last_lat}, Lon={last_lon}")
+    # ============================================================
+    
     return "PlanetPOI"
 
 
@@ -206,16 +220,19 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
             return
         
         desc = desc_var.get().strip()
-        ALL_POIS.append({
+        new_poi = {
             "body": full_body,
             "lat": lat,
             "lon": lon,
             "description": desc,
             "active": True
-        })
+        }
+        ALL_POIS.append(new_poi)
+        print(f"PPOI: Added new POI: {new_poi}")
+        print(f"PPOI: Total POIs now: {len(ALL_POIS)}")
         save_pois()
-        dialog.destroy()
         redraw_plugin_app()
+        dialog.destroy()
     
     # Buttons aligned to the right
     button_frame = tk.Frame(dialog)
@@ -261,7 +278,8 @@ def build_plugin_content(frame):
     # Liten font för POI-listan
     small_font = tkfont.Font(size=9)  # Justera till 8 eller 10 vid behov
     
-    frame.grid_columnconfigure(0, weight=1)
+    frame.grid_columnconfigure(0, weight=0, minsize=25)  # Checkbox column - fixed width
+    frame.grid_columnconfigure(1, weight=1)  # Text column - expands
     row = 0
 
     print("build_plugin_content last_body:", last_body)
@@ -312,6 +330,7 @@ def build_plugin_content(frame):
         return
 
     matching_pois = [poi for poi in ALL_POIS if poi.get("body") == current_body]
+    print(f"PPOI: build_plugin_content - current_body={current_body}, found {len(matching_pois)} POIs")
 
     # Header with add button
     header_frame = tk.Frame(frame)
@@ -371,7 +390,7 @@ def plugin_app(parent, cmdr=None, is_beta=None):
     PLUGIN_PARENT = parent
     
     # Create persistent frame - use tk.Frame as root, with tk widgets inside
-    PLUGIN_FRAME = tk.Frame(parent)
+    PLUGIN_FRAME = tk.Frame(parent, highlightthickness=1, highlightbackground="gray")
     PLUGIN_FRAME.grid(row=0, column=0, columnspan=2, sticky="nsew")
     
     # Build initial content
