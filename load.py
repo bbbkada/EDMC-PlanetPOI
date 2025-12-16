@@ -101,10 +101,10 @@ def plugin_start3(plugin_dir: str) -> str:
     
     # ============== SIMULERING - HÅRDKODADE VÄRDEN ==============
     # Kommentera ut dessa rader för att inaktivera simuleringen
-    CURRENT_SYSTEM = "HIP 36601"
-    last_body = "HIP 36601 C 11 b"
-    last_lat = -62.5  # Samma som POI:n "Crystalline shards Tellerium"
-    last_lon = -127.2
+    #CURRENT_SYSTEM = "HIP 36601"
+    #last_body = "HIP 36601 C 3 b"
+    #last_lat = -62.5  # Samma som POI:n "Crystalline shards Tellerium"
+    #last_lon = -127.2
     print(f"PPOI SIMULATION: System={CURRENT_SYSTEM}, Body={last_body}, Lat={last_lat}, Lon={last_lon}")
     # ============================================================
     
