@@ -11,6 +11,7 @@ The body text is case sensitive and need to have the same format as reported by 
 
 You add new poi´s by pressing the + button in the gui, System name is verified against Spansh API.
 Current position will be autofilled if in orbit of a body, otherwise only current system.
+
 ![Screenshot](images/Add_poi.png)  
 
 The EDMC gui will show bodynames that have poi´s and their description when entering a system.
