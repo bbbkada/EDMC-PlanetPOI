@@ -28,5 +28,5 @@ You can use the gui checkboxes to enable/disable ingame overlay for individual P
 
 ## Installation
 
-Download latest release zip-file and unpack to EDMC Plugin folder.
+Download latest release zip-file and unpack to EDMC Plugin folder.  
 Remember to install [EDMCOverlay](https://github.com/inorton/EDMCOverlay) if you want in-game overlay.
