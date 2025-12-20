@@ -8,6 +8,8 @@ from config import config
 from theme import theme
 import json
 import os
+import base64
+import urllib.parse
 import overlay  # overlay.py i samma katalog
 from AutoCompleter import AutoCompleter
 plugin_tl = functools.partial(l10n.translations.tl, context=__file__)
@@ -29,7 +31,7 @@ LEFT_VAR = None
 
 CURRENT_SYSTEM = None
 
-# latest position för "Save current location"
+# Latest position for "Save current location"
 last_lat, last_lon, last_body = None, None, None
 
 def format_body_name(body_name):
@@ -99,11 +101,11 @@ def plugin_start3(plugin_dir: str) -> str:
     load_pois()
     overlay.set_overlay_settings(ROWS_VAR.get(), LEFT_VAR.get())
     
-    # ============== SIMULERING - HÅRDKODADE VÄRDEN ==============
-    # Kommentera ut dessa rader för att inaktivera simuleringen
+    # ============== SIMULATION - HARDCODED VALUES ==============
+    # Comment out these lines to disable simulation
     #CURRENT_SYSTEM = "HIP 36601"
     #last_body = "HIP 36601 C 3 b"
-    #last_lat = -62.5  # Samma som POI:n "Crystalline shards Tellerium"
+    #last_lat = -62.5  # Same as POI "Crystalline shards Tellerium"
     #last_lon = -127.2
     print(f"PPOI SIMULATION: System={CURRENT_SYSTEM}, Body={last_body}, Lat={last_lat}, Lon={last_lon}")
     # ============================================================
@@ -115,7 +117,52 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
     """Show dialog to add a new POI"""
     dialog = tk.Toplevel(parent_frame)
     dialog.title("Add New POI")
-    dialog.geometry("480x360")
+    dialog.geometry("480x420")
+    dialog.transient(parent_frame)
+    dialog.grab_set()
+    
+    # Center the dialog
+    dialog.update_idletasks()
+    x = parent_frame.winfo_rootx() + (parent_frame.winfo_width() // 2) - (dialog.winfo_width() // 2)
+    y = parent_frame.winfo_rooty() + (parent_frame.winfo_height() // 2) - (dialog.winfo_height() // 2)
+    dialog.geometry(f"+{x}+{y}")
+
+def show_config_dialog(parent_frame):
+    """Show config dialog with settings from plugin_prefs"""
+    # Apply theme to parent first to ensure proper initialization
+    theme.update(parent_frame)
+    
+    dialog = tk.Toplevel(parent_frame)
+    dialog.title("PlanetPOI Configuration")
+    dialog.geometry("1400x550")
+    dialog.configure(bg="#ffffff")  # White background
+    dialog.transient(parent_frame)
+    dialog.grab_set()
+    
+    # Center the dialog
+    dialog.update_idletasks()
+    x = parent_frame.winfo_rootx() + (parent_frame.winfo_width() // 2) - (dialog.winfo_width() // 2)
+    y = parent_frame.winfo_rooty() + (parent_frame.winfo_height() // 2) - (dialog.winfo_height() // 2)
+    dialog.geometry(f"+{x}+{y}")
+    
+    # Add close button at bottom first (pack order matters!)
+    button_frame = tk.Frame(dialog, bg="#ffffff")
+    button_frame.pack(side=tk.BOTTOM, pady=(5, 15), padx=15)
+    tk.Button(button_frame, text="Close", command=dialog.destroy, width=10).pack()
+    
+    # Create container for scrollable frame (takes remaining space)
+    container_frame = tk.Frame(dialog, bg="#ffffff")
+    container_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=(15, 5))
+    
+    # Use plugin_prefs to create properly themed frame, then reparent it
+    prefs_frame = plugin_prefs(container_frame, None, False)
+    prefs_frame.pack(fill=tk.BOTH, expand=True)
+
+def show_add_poi_dialog(parent_frame, prefill_body=None):
+    """Show dialog to add a new POI"""
+    dialog = tk.Toplevel(parent_frame)
+    dialog.title("Add New POI")
+    dialog.geometry("480x420")
     dialog.transient(parent_frame)
     dialog.grab_set()
     
@@ -154,6 +201,13 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
     dialog.grid_columnconfigure(1, weight=1)
     
     row = 0
+    
+    # Paste button at the top - function defined later after all variables exist
+    paste_btn_placeholder = None  # Will be created after variables are defined
+    paste_btn = tk.Button(dialog, text="📋 Paste Link", width=12)
+    paste_btn.grid(row=row, column=1, sticky="e", padx=(10, 20), pady=(5, 10))
+    row += 1
+    
     tk.Label(dialog, text="System Name:").grid(row=row, column=0, sticky="w", padx=10, pady=5)
     
     # Use AutoCompleter for system name with Spansh API
@@ -197,12 +251,78 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
     status_label.grid(row=row, column=0, columnspan=2, pady=(2, 5))
     row += 1
     
+    # Configure paste button now that all variables are defined
+    def paste_from_clipboard():
+        try:
+            clipboard_text = dialog.clipboard_get().strip()
+            poi_data = parse_share_url(clipboard_text)
+            
+            if poi_data:
+                # Extract system and body from full body name using intelligent split
+                full_body = poi_data.get('body', '')
+                system_name, body_part = split_system_and_body(full_body)
+                
+                # Fill in all fields
+                system_entry.set_text(system_name, placeholder_style=False)
+                body_var.set(body_part)
+                lat_var.set(str(poi_data.get('lat', '')))
+                lon_var.set(str(poi_data.get('lon', '')))
+                desc_var.set(poi_data.get('description', ''))
+                
+                status_label.config(text="✓ Loaded from shared link", fg="green")
+            else:
+                status_label.config(text="No valid link found in clipboard", fg="red")
+        except Exception as e:
+            status_label.config(text="No link found in clipboard", fg="red")
+    
+    # Set the command for the paste button that was created earlier
+    paste_btn.config(command=paste_from_clipboard)
+    
+    # Auto-detect share link when pasting into any field
+    def on_paste(event):
+        widget = event.widget
+        dialog.after(10, lambda: check_for_share_link(widget))
+    
+    def check_for_share_link(widget):
+        try:
+            text = widget.get()
+            if 'github.io/EDMC-PlanetPOI' in text or '#' in text:
+                poi_data = parse_share_url(text)
+                if poi_data:
+                    # Clear the pasted URL from the field
+                    if widget == system_entry:
+                        system_entry.set_text("", placeholder_style=False)
+                    elif hasattr(widget, 'delete'):
+                        widget.delete(0, tk.END)
+                    
+                    # Extract system and body from full body name using intelligent split
+                    full_body = poi_data.get('body', '')
+                    system_name, body_part = split_system_and_body(full_body)
+                    
+                    # Fill in all fields
+                    system_entry.set_text(system_name, placeholder_style=False)
+                    body_var.set(body_part)
+                    lat_var.set(str(poi_data.get('lat', '')))
+                    lon_var.set(str(poi_data.get('lon', '')))
+                    desc_var.set(poi_data.get('description', ''))
+                    
+                    status_label.config(text="✓ Auto-loaded from shared link", fg="green")
+        except Exception:
+            pass
+    
+    # Bind paste event to all entry fields
+    system_entry.bind('<Control-v>', on_paste)
+    body_entry.bind('<Control-v>', on_paste)
+    lat_entry.bind('<Control-v>', on_paste)
+    lon_entry.bind('<Control-v>', on_paste)
+    desc_entry.bind('<Control-v>', on_paste)
+    
     def save_and_close():
         system = system_var.get().strip()
         body = body_var.get().strip()
         
         if not system:
-            status_label.config(text="System name is required!")
+            status_label.config(text="System name is required!", fg="red")
             return
         
         # Format body name with proper spacing and capitalization
@@ -216,7 +336,7 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
             lat = float(lat_var.get().replace(",", "."))
             lon = float(lon_var.get().replace(",", "."))
         except ValueError:
-            status_label.config(text="Invalid latitude or longitude!")
+            status_label.config(text="Invalid latitude or longitude!", fg="red")
             return
         
         desc = desc_var.get().strip()
@@ -234,9 +354,9 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
         redraw_plugin_app()
         dialog.destroy()
     
-    # Buttons aligned to the right
+    # Buttons aligned to the right, same as inputs and paste button
     button_frame = tk.Frame(dialog)
-    button_frame.grid(row=row, column=1, sticky="e", padx=(10, 20), pady=(5, 15))
+    button_frame.grid(row=row, column=1, sticky="e", padx=(10, 20), pady=(5, 20))
     
     tk.Button(button_frame, text="Cancel", command=dialog.destroy, width=10).pack(side="left", padx=(0, 5))
     tk.Button(button_frame, text="Save", command=save_and_close, width=10).pack(side="left")
@@ -295,9 +415,11 @@ def build_plugin_content(frame):
             header_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
             header_frame.grid_columnconfigure(0, weight=1)
             
-            tk.Label(header_frame, text=plugin_tl(f"PPOI: Poi's in {CURRENT_SYSTEM}")).grid(row=0, column=0, sticky="w")
+            tk.Label(header_frame, text=plugin_tl("PPOI: Poi's in {system}").format(system=CURRENT_SYSTEM)).grid(row=0, column=0, sticky="w")
             tk.Button(header_frame, text="➕", command=lambda: show_add_poi_dialog(frame, CURRENT_SYSTEM), 
-                     width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e")
+                     width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e", padx=(0, 2))
+            tk.Button(header_frame, text="🔧", command=lambda: show_config_dialog(frame), 
+                     width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=2, sticky="e")
             theme.update(header_frame)  # Apply theme to header_frame and its children
             row += 1
             for idx, poi in enumerate(matching_system_pois):
@@ -322,9 +444,11 @@ def build_plugin_content(frame):
             header_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
             header_frame.grid_columnconfigure(0, weight=1)
             
-            tk.Label(header_frame, text=plugin_tl(f"PPOI: No poi's in system")).grid(row=0, column=0, sticky="w")
+            tk.Label(header_frame, text=plugin_tl("PPOI: No poi's in system")).grid(row=0, column=0, sticky="w")
             tk.Button(header_frame, text="➕", command=lambda: show_add_poi_dialog(frame, CURRENT_SYSTEM), 
-                     width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e")
+                     width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e", padx=(0, 2))
+            tk.Button(header_frame, text="🔧", command=lambda: show_config_dialog(frame), 
+                     width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=2, sticky="e")
             theme.update(header_frame)  # Apply theme to header_frame and its children
         
         return
@@ -344,13 +468,15 @@ def build_plugin_content(frame):
     ).grid(row=0, column=0, sticky="w")
     
     tk.Button(header_frame, text="➕", command=lambda: show_add_poi_dialog(frame, current_body), 
-             width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e")
+             width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e", padx=(0, 2))
+    tk.Button(header_frame, text="⚡", command=lambda: show_config_dialog(frame), 
+             width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=2, sticky="e")
     theme.update(header_frame)  # Apply theme to header_frame and its children
     row += 1
 
     for idx, poi in enumerate(matching_pois):
         active_var = tk.BooleanVar(value=poi.get("active", True))
-        cb = tk.Checkbutton(
+        cb = nb.Checkbutton(
             frame,
             variable=active_var
         )
@@ -364,7 +490,7 @@ def build_plugin_content(frame):
                 desc = f"{lat:.4f}, {lon:.4f}"
             else:
                 desc = "(No description)"
-        tk.Label(
+        nb.Label(
             frame,
             text=desc,
             font=small_font
@@ -378,7 +504,7 @@ def build_plugin_content(frame):
         row += 1
 
     if not matching_pois:
-        tk.Label(
+        nb.Label(
             frame,
             text=plugin_tl("PPOI: No POIs for this body")
         ).grid(row=row, column=0, columnspan=2, sticky="w", padx=2)
@@ -419,7 +545,7 @@ def create_scrolled_frame(parent):
         except Exception:
             bg = "#ffffff"
 
-    canvas = tk.Canvas(parent, borderwidth=0, background=bg)
+    canvas = tk.Canvas(parent, borderwidth=0, highlightthickness=0, background=bg)
     scrollbar = tk.Scrollbar(parent, orient="vertical", command=canvas.yview)
     scroll_frame = tk.Frame(canvas, background=bg)
 
@@ -454,13 +580,13 @@ def build_plugin_ui(frame):
     
     row = 0
 
-    # Rubriker på samma rad
+    # Headers on same row
     nb.Label(frame, text=plugin_tl("Calculate distance with altitude")).grid(row=row, column=0, columnspan=2,sticky="w", padx=(0, 8))
     nb.Label(frame, text=plugin_tl("Max overlay rows")).grid(row=row, column=2, sticky="w", padx=(0, 8))
     nb.Label(frame, text=plugin_tl("Overlay left margin (pixels)")).grid(row=row, column=3,columnspan=3, sticky="w")
     row += 1
 
-    # Widgets på samma rad
+    # Widgets on same row
     cb = nb.Checkbutton(frame, variable=ALT_VAR, width=2)
     cb.grid(row=row, column=0, columnspan=2,sticky="w", padx=(0, 8))
     rows_entry = nb.EntryMenu(frame, textvariable=ROWS_VAR, width=4)
@@ -483,7 +609,8 @@ def build_plugin_ui(frame):
         plugin_tl("Longitude"),
         plugin_tl("Description"),
         plugin_tl("Delete"),
-        plugin_tl("Save")
+        plugin_tl("Save"),
+        plugin_tl("Share")
     ]
     for col, header in enumerate(headers):
         nb.Label(frame, text=header, font=('TkDefaultFont', 9, 'bold')).grid(row=row, column=col, padx=2, pady=2, sticky="w")
@@ -510,6 +637,9 @@ def build_plugin_ui(frame):
         savebtn = nb.Button(frame, text=plugin_tl("Save"), state='disabled', width=7)
         savebtn.grid(row=row, column=6, sticky="w", padx=(2,2))
 
+        sharebtn = nb.Button(frame, text=plugin_tl("Share"), command=lambda i=idx: show_share_popup(frame, i), width=7)
+        sharebtn.grid(row=row, column=7, sticky="w", padx=(2,2))
+
         def on_desc_change(*args, i=idx, v=desc_var, btn=savebtn):
             current = v.get()
             original = ALL_POIS[i].get("description", "")
@@ -519,15 +649,191 @@ def build_plugin_ui(frame):
         savebtn.config(command=lambda i=idx, v=desc_var, btn=savebtn: save_desc(i, v, frame, btn))
         row += 1
 
-    # ------ Grid-kolumnjustering för snygg layout ------
-    frame.grid_columnconfigure(0, minsize=22, weight=0)     # Active (supersmal)
+    # ------ Grid column configuration for clean layout ------
+    frame.grid_columnconfigure(0, minsize=22, weight=0)     # Active (very narrow)
     frame.grid_columnconfigure(1, minsize=120, weight=0)    # Body Name
     frame.grid_columnconfigure(2, minsize=84, weight=0)     # Latitude
     frame.grid_columnconfigure(3, minsize=100, weight=0)    # Longitude
-    frame.grid_columnconfigure(4, minsize=210, weight=2)    # Description (bred & expanderar)
+    frame.grid_columnconfigure(4, minsize=210, weight=2)    # Description (wide & expands)
     frame.grid_columnconfigure(5, minsize=60, weight=0)     # Delete
     frame.grid_columnconfigure(6, minsize=70, weight=0)     # Save
+    frame.grid_columnconfigure(7, minsize=70, weight=0)     # Share
 
+
+def split_system_and_body(full_body_name):
+    """
+    Split a full body name into system and body parts.
+    Body designation always starts with a digit (planet number).
+    Examples:
+    - "Orrere 2 b" -> ("Orrere", "2 b")
+    - "Synuefe AA-P c22-7 5 c" -> ("Synuefe AA-P c22-7", "5 c")
+    - "HIP 36601 C 3 a" -> ("HIP 36601", "C 3 a")
+    """
+    if not full_body_name:
+        return "", ""
+    
+    # Find the last space followed by a digit or uppercase letter (body designation start)
+    # Body can start with: digit (planet around primary star) or uppercase letter (secondary star)
+    for i in range(len(full_body_name) - 1, 0, -1):
+        if full_body_name[i-1] == ' ':
+            char_after_space = full_body_name[i]
+            # Body designation starts with digit OR uppercase letter
+            if char_after_space.isdigit() or (char_after_space.isupper() and char_after_space.isalpha()):
+                system_name = full_body_name[:i-1]
+                body_part = full_body_name[i:]
+                return system_name, body_part
+    
+    # If no valid split found, return full name as system
+    return full_body_name, ""
+
+def split_system_and_body(full_body_name):
+    """
+    Split a full body name into system and body parts.
+    Body designation starts with either:
+    - A single uppercase letter followed by space and digit (secondary star): "B 5 c", "C 3 a"
+    - A digit (planet around primary star): "2 b", "5 c"
+    
+    Examples:
+    - "Orrere 2 b" -> ("Orrere", "2 b")
+    - "Synuefe AA-P c22-7 5 c" -> ("Synuefe AA-P c22-7", "5 c")
+    - "HIP 36601 C 3 a" -> ("HIP 36601", "C 3 a")
+    - "Outotz LS-K d8-3 B 5 c" -> ("Outotz LS-K d8-3", "B 5 c")
+    """
+    if not full_body_name:
+        return "", ""
+    
+    # First, try to find space followed by single uppercase letter, then space, then digit
+    # This is a secondary star designation (e.g., "B 5 c", "C 3 a")
+    for i in range(len(full_body_name) - 3, 0, -1):  # -3 because we need "X Y" at minimum
+        if full_body_name[i-1] == ' ':
+            char_after_space = full_body_name[i]
+            # Check if it's a single uppercase letter
+            if char_after_space.isupper() and char_after_space.isalpha():
+                # Check if next character is a space and the one after is a digit
+                if i + 2 < len(full_body_name):
+                    if full_body_name[i+1] == ' ' and full_body_name[i+2].isdigit():
+                        system_name = full_body_name[:i-1]
+                        body_part = full_body_name[i:]
+                        return system_name, body_part
+    
+    # If no secondary star found, look for space followed by digit (primary star planet)
+    for i in range(len(full_body_name) - 1, 0, -1):
+        if full_body_name[i-1] == ' ':
+            char_after_space = full_body_name[i]
+            if char_after_space.isdigit():
+                system_name = full_body_name[:i-1]
+                body_part = full_body_name[i:]
+                return system_name, body_part
+    
+    # If no valid split found, return full name as system
+    return full_body_name, ""
+
+def parse_share_url(url):
+    """
+    Parse a share URL and extract POI data
+    Returns dict with POI data or None if invalid
+    """
+    try:
+        # Extract hash part after #
+        if '#' not in url:
+            return None
+        
+        base64_str = url.split('#', 1)[1].strip()
+        if not base64_str:
+            return None
+        
+        # Add padding if needed
+        while len(base64_str) % 4 != 0:
+            base64_str += '='
+        
+        # Decode base64url to JSON
+        base64_bytes = base64_str.replace('-', '+').replace('_', '/').encode('utf-8')
+        json_bytes = base64.urlsafe_b64decode(base64_bytes)
+        json_str = json_bytes.decode('utf-8')
+        poi_data = json.loads(json_str)
+        
+        # Validate required fields
+        if poi_data.get('v') != 1:
+            return None
+        if 'body' not in poi_data or 'lat' not in poi_data or 'lon' not in poi_data:
+            return None
+        
+        return poi_data
+    except Exception as e:
+        print(f"PPOI: Failed to parse share URL: {e}")
+        return None
+
+def generate_share_url(poi):
+    """
+    Generate a shareable URL for a POI based on the format used in share/index.html
+    URL format: https://bbbkada.github.io/EDMC-PlanetPOI/share/#<base64url_encoded_json>
+    """
+    # Create POI object matching the format expected by index.html
+    poi_data = {
+        "v": 1,
+        "body": poi.get("body", ""),
+        "lat": poi.get("lat", 0),
+        "lon": poi.get("lon", 0),
+        "description": poi.get("description", ""),
+        "active": poi.get("active", True)
+    }
+    
+    # Convert to JSON and encode to base64url
+    json_str = json.dumps(poi_data, separators=(',', ':'))
+    json_bytes = json_str.encode('utf-8')
+    base64_bytes = base64.urlsafe_b64encode(json_bytes)
+    base64_str = base64_bytes.decode('utf-8').rstrip('=')
+    
+    return f"https://bbbkada.github.io/EDMC-PlanetPOI/share/#{base64_str}"
+
+def show_share_popup(parent, idx):
+    """
+    Show popup dialog with shareable URL and copy button
+    """
+    poi = ALL_POIS[idx]
+    share_url = generate_share_url(poi)
+    
+    # Create popup window
+    popup = tk.Toplevel(parent)
+    popup.title(plugin_tl("Share POI"))
+    popup.geometry("500x170")
+    popup.resizable(False, False)
+    popup.transient(parent)
+    
+    # Center popup
+    popup.update_idletasks()
+    x = parent.winfo_rootx() + (parent.winfo_width() // 2) - (popup.winfo_width() // 2)
+    y = parent.winfo_rooty() + (parent.winfo_height() // 2) - (popup.winfo_height() // 2)
+    popup.geometry(f"+{x}+{y}")
+    
+    # Label
+    label = tk.Label(popup, text=plugin_tl("Copy this link to share the POI:"))
+    label.pack(pady=(10, 5), padx=10)
+    
+    # URL input field
+    url_var = tk.StringVar(value=share_url)
+    url_entry = tk.Entry(popup, textvariable=url_var, width=60)
+    url_entry.pack(pady=5, padx=10, fill=tk.X)
+    url_entry.select_range(0, tk.END)
+    url_entry.focus()
+    
+    # Copy button
+    def copy_to_clipboard():
+        popup.clipboard_clear()
+        popup.clipboard_append(share_url)
+        popup.destroy()
+    
+    copy_btn = tk.Button(popup, text=plugin_tl("Copy to clipboard"), command=copy_to_clipboard)
+    copy_btn.pack(pady=10)
+    
+    # Close popup when clicking outside or pressing Escape
+    def close_popup(event=None):
+        popup.destroy()
+    
+    popup.bind("<Escape>", close_popup)
+    popup.bind("<FocusOut>", lambda e: popup.after(100, lambda: popup.destroy() if not popup.focus_get() else None))
+    
+    popup.grab_set()
 
 def redraw_prefs(frame):
     for widget in frame.winfo_children():

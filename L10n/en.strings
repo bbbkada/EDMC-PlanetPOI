@@ -6,6 +6,10 @@
 "Description" = "Description";
 "Delete" = "Delete";
 "Save" = "Save";
+"Share" = "Share";
+"Share POI" = "Share POI";
+"Copy this link to share the POI:" = "Copy this link to share the POI:";
+"Copy to clipboard" = "Copy to clipboard";
 "Add new POI:" = "Add new POI:";
 "Add" = "Add";
 "Save current position" = "Save current position";
@@ -17,3 +21,6 @@
 "Calculate distance with altitude" = "Calculate distance with altitude";
 "Max overlay rows" = "Max overlay rows";
 "Overlay left margin (pixels)" = "Overlay left margin (pixels)";
+"PPOI: No POIs for this body" = "PPOI: No POIs for this body";
+"PPOI: Poi's in {system}" = "PPOI: Poi's in {system}";
+"PPOI: No poi's in system" = "PPOI: No poi's in system";

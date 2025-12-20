@@ -12,7 +12,14 @@ class AutoCompleter(PlaceHolder):
 
         self.parent = parent
 
-        self.lb = tk.Listbox(self.parent, selectmode=tk.SINGLE, **kw)
+        # Create frame for listbox + scrollbar
+        self.lb_frame = tk.Frame(self.parent)
+        self.lb_scrollbar = tk.Scrollbar(self.lb_frame, orient=tk.VERTICAL)
+        self.lb = tk.Listbox(self.lb_frame, selectmode=tk.SINGLE, yscrollcommand=self.lb_scrollbar.set, **kw)
+        self.lb_scrollbar.config(command=self.lb.yview)
+        self.lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.lb_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
         self.lb_up = False
         self.has_selected = False
         self.queue = queue.Queue()
@@ -127,17 +134,20 @@ class AutoCompleter(PlaceHolder):
 
     def show_results(self, results):
         if results:
-            self.lb.delete(0, tk.END)
-            for w in results:
-                self.lb.insert(tk.END, w)
-
-            self.show_list(len(results))
-            
             # Check if current text exactly matches a result
             current_text = self.var.get().strip()
             if current_text in results:
+                # Exact match found - hide dropdown and show green
                 self['fg'] = 'green'
+                if self.lb_up:
+                    self.hide_list()
             else:
+                # Show dropdown with suggestions
+                self.lb.delete(0, tk.END)
+                for w in results:
+                    self.lb.insert(tk.END, w)
+
+                self.show_list(len(results))
                 self.set_default_style()
         else:
             if self.lb_up:
@@ -148,16 +158,19 @@ class AutoCompleter(PlaceHolder):
                 self['fg'] = 'red'
 
     def show_list(self, height):
-        self.lb["height"] = min(height, 8)  # Max 8 items visible
+        self.lb["height"] = min(height, 8)  # Max 8 items visible, more will show scrollbar
         if not self.lb_up and self.parent.focus_get() in [self, self.lb]:
-            info = self.grid_info()
-            if info:
-                self.lb.grid(row=int(info["row"]) + 1, column=int(info["column"]), columnspan=info.get("columnspan", 1), sticky="ew")
-                self.lb_up = True
+            # Use place() to overlay the dropdown without affecting layout
+            x = self.winfo_x()
+            y = self.winfo_y() + self.winfo_height()
+            width = self.winfo_width()
+            self.lb_frame.place(x=x, y=y, width=width)
+            self.lb_frame.lift()  # Bring to front
+            self.lb_up = True
 
     def hide_list(self):
         if self.lb_up:
-            self.lb.grid_remove()
+            self.lb_frame.place_forget()
             self.lb_up = False
 
     def query_systems(self, inp):
