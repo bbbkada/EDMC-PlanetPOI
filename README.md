@@ -5,11 +5,12 @@ Plugin for [EDMC](https://github.com/EDCD/EDMarketConnector) that lets you save 
 To get ingame overlay, you need [EDMCOverlay](https://github.com/inorton/EDMCOverlay) installed.  
   
 in setting you can adjust max poi´s to show, if body has multiple saved. Adjust the overlay position, and choose if altitude is added to distance or not.
-You can create poi´s manually by entering coords or if at the location, save current position.   
+You can share poi with a link, to other commanders.   
 ![Screenshot](images/EDMC_Settings.png)  
 
 You add new poi´s by pressing the + button in the gui, System name is verified against Spansh API.
 Current position will be autofilled if in orbit of a body, otherwise only current system.
+If you have a shared link in clipboard, you can paste a shared poi with ctrl+V or the button.
 
 ![Screenshot](images/Add_poi.png)  
 
