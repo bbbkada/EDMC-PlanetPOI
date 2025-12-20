@@ -1,6 +1,7 @@
 # EDMC Planet Poi Plugin
 
 Plugin for [EDMC](https://github.com/EDCD/EDMarketConnector) that lets you save positions on planets/bodys and help you navigate to them.  
+Useful when cruising around and suddenly want to save current position or find a location shared by someone else.
 
 To get ingame overlay, you need [EDMCOverlay](https://github.com/inorton/EDMCOverlay) installed.  
   
