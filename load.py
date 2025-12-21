@@ -426,7 +426,9 @@ def build_plugin_content(frame):
             header_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
             header_frame.grid_columnconfigure(0, weight=1)
             
-            tk.Label(header_frame, text=plugin_tl("PPOI: Poi's in {system}").format(system=CURRENT_SYSTEM)).grid(row=0, column=0, sticky="w")
+            system_label = tk.Label(header_frame, text=plugin_tl("PPOI: Poi's in {system}").format(system=CURRENT_SYSTEM))
+            system_label.grid(row=0, column=0, sticky="w")
+            theme.update(system_label)
             tk.Button(header_frame, text="➕", command=lambda: show_add_poi_dialog(frame, CURRENT_SYSTEM), 
                      width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e", padx=(0, 2))
             tk.Button(header_frame, text="🔧", command=lambda: show_config_dialog(frame), 
@@ -444,18 +446,22 @@ def build_plugin_content(frame):
                         desc = "(No description)"
                 
                 poi_desc = poi.get("body", "")[len(CURRENT_SYSTEM) +1 :] + " - " + desc
-                tk.Label(
+                poi_label = tk.Label(
                     frame,
                     text=poi_desc,
                     font=small_font
-                ).grid(row=row, column=0, sticky="w", padx=2, pady=0)
+                )
+                poi_label.grid(row=row, column=0, sticky="w", padx=2, pady=0)
+                theme.update(poi_label)
                 row += 1
         else:    
             header_frame = tk.Frame(frame)
             header_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
             header_frame.grid_columnconfigure(0, weight=1)
             
-            tk.Label(header_frame, text=plugin_tl("PPOI: No poi's in system")).grid(row=0, column=0, sticky="w")
+            no_system_label = tk.Label(header_frame, text=plugin_tl("PPOI: No poi's in system"))
+            no_system_label.grid(row=0, column=0, sticky="w")
+            theme.update(no_system_label)
             tk.Button(header_frame, text="➕", command=lambda: show_add_poi_dialog(frame, CURRENT_SYSTEM), 
                      width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e", padx=(0, 2))
             tk.Button(header_frame, text="🔧", command=lambda: show_config_dialog(frame), 
@@ -472,26 +478,29 @@ def build_plugin_content(frame):
     header_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
     header_frame.grid_columnconfigure(0, weight=1)
     
-    tk.Label(
+    body_label = tk.Label(
         header_frame,
         text=f"PPOI: {current_body}",
         font=('TkDefaultFont', 10, 'bold')
-    ).grid(row=0, column=0, sticky="w")
+    )
+    body_label.grid(row=0, column=0, sticky="w")
+    theme.update(body_label)
     
     tk.Button(header_frame, text="➕", command=lambda: show_add_poi_dialog(frame, current_body), 
              width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e", padx=(0, 2))
-    tk.Button(header_frame, text="⚡", command=lambda: show_config_dialog(frame), 
+    tk.Button(header_frame, text="🔧", command=lambda: show_config_dialog(frame), 
              width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=2, sticky="e")
     theme.update(header_frame)
     row += 1
 
     for idx, poi in enumerate(matching_pois):
         active_var = tk.BooleanVar(value=poi.get("active", True))
-        cb = nb.Checkbutton(
+        cb = tk.Checkbutton(
             frame,
             variable=active_var
         )
         cb.grid(row=row, column=0, sticky="w", padx=2, pady=0)
+        theme.update(cb)
 
         desc = poi.get("description", "")
         if not desc:
@@ -501,11 +510,13 @@ def build_plugin_content(frame):
                 desc = f"{lat:.4f}, {lon:.4f}"
             else:
                 desc = "(No description)"
-        nb.Label(
+        desc_label = tk.Label(
             frame,
             text=desc,
             font=small_font
-        ).grid(row=row, column=1, sticky="w", padx=2, pady=0)
+        )
+        desc_label.grid(row=row, column=1, sticky="w", padx=2, pady=0)
+        theme.update(desc_label)
 
         def on_toggle(i=idx, v=active_var):
             matching_pois[i]["active"] = v.get()
@@ -515,10 +526,12 @@ def build_plugin_content(frame):
         row += 1
 
     if not matching_pois:
-        nb.Label(
+        no_poi_label = tk.Label(
             frame,
             text=plugin_tl("PPOI: No POIs for this body")
-        ).grid(row=row, column=0, columnspan=2, sticky="w", padx=2)
+        )
+        no_poi_label.grid(row=row, column=0, columnspan=2, sticky="w", padx=2)
+        theme.update(no_poi_label)
 
 
 def plugin_app(parent, cmdr=None, is_beta=None):
