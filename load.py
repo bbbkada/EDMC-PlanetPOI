@@ -129,13 +129,10 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
 
 def show_config_dialog(parent_frame):
     """Show config dialog with settings from plugin_prefs"""
-    # Apply theme to parent first to ensure proper initialization
-    theme.update(parent_frame)
-    
     dialog = tk.Toplevel(parent_frame)
     dialog.title("PlanetPOI Configuration")
     dialog.geometry("1400x550")
-    dialog.configure(bg="#ffffff")  # White background
+    dialog.configure(bg="#ffffff")
     dialog.transient(parent_frame)
     dialog.grab_set()
     
@@ -420,7 +417,6 @@ def build_plugin_content(frame):
                      width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e", padx=(0, 2))
             tk.Button(header_frame, text="🔧", command=lambda: show_config_dialog(frame), 
                      width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=2, sticky="e")
-            theme.update(header_frame)  # Apply theme to header_frame and its children
             row += 1
             for idx, poi in enumerate(matching_system_pois):
                 desc = poi.get("description", "")
@@ -449,7 +445,6 @@ def build_plugin_content(frame):
                      width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e", padx=(0, 2))
             tk.Button(header_frame, text="🔧", command=lambda: show_config_dialog(frame), 
                      width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=2, sticky="e")
-            theme.update(header_frame)  # Apply theme to header_frame and its children
         
         return
 
@@ -471,7 +466,6 @@ def build_plugin_content(frame):
              width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e", padx=(0, 2))
     tk.Button(header_frame, text="⚡", command=lambda: show_config_dialog(frame), 
              width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=2, sticky="e")
-    theme.update(header_frame)  # Apply theme to header_frame and its children
     row += 1
 
     for idx, poi in enumerate(matching_pois):
@@ -516,7 +510,7 @@ def plugin_app(parent, cmdr=None, is_beta=None):
     PLUGIN_PARENT = parent
     
     # Create persistent frame - use tk.Frame as root, with tk widgets inside
-    PLUGIN_FRAME = tk.Frame(parent, highlightthickness=1, highlightbackground="gray")
+    PLUGIN_FRAME = tk.Frame(parent, highlightthickness=1) # ,highlightbackground="gray"
     PLUGIN_FRAME.grid(row=0, column=0, columnspan=2, sticky="nsew")
     
     # Build initial content
@@ -577,7 +571,6 @@ def safe_int(val, fallback):
 
 def build_plugin_ui(frame):
     global ALT_VAR, ROWS_VAR, LEFT_VAR,POI_VARS
-    
     row = 0
 
     # Headers on same row
@@ -588,7 +581,7 @@ def build_plugin_ui(frame):
 
     # Widgets on same row
     cb = nb.Checkbutton(frame, variable=ALT_VAR, width=2)
-    cb.grid(row=row, column=0, columnspan=2,sticky="w", padx=(0, 8))
+    cb.grid(row=row, column=0, columnspan=2,sticky="w", padx=(0, 4))
     rows_entry = nb.EntryMenu(frame, textvariable=ROWS_VAR, width=4)
     rows_entry.grid(row=row, column=2, sticky="w", padx=(0, 8))
     left_entry = nb.EntryMenu(frame, textvariable=LEFT_VAR, width=6)
@@ -596,14 +589,25 @@ def build_plugin_ui(frame):
     row += 1
 
     sep = ttk.Separator(frame, orient='horizontal')
-    sep.grid(row=row, column=0, columnspan=7, sticky="ew", pady=8)
+    sep.grid(row=row, column=0, columnspan=8, sticky="ew", pady=8)
     row += 1
 
-    nb.Label(frame, text=plugin_tl("Saved POIs"), font=('TkDefaultFont', 10, 'bold')).grid(row=row, column=0, columnspan=7, sticky="w")
-    row += 1
+    # Create separate frame for table to avoid column conflicts with top controls
+    # Use tk.Frame instead of nb.Frame so we can set background color
+    table_frame = tk.Frame(frame, background="white")
+    
+    table_frame.grid(row=row, column=0, columnspan=8, sticky="nsew")
+    frame.grid_rowconfigure(row, weight=1)  # Let table expand
+    
+    # Reset row counter for table frame
+    table_row = 0
+    
+    nb.Label(table_frame, text=plugin_tl("Saved POIs"), font=('TkDefaultFont', 10, 'bold')).grid(row=table_row, column=0, columnspan=9, sticky="w")
+    table_row += 1
 
     headers = [
         plugin_tl("Active"),
+        "",  # Copy system icon column - no header text to avoid expanding
         plugin_tl("Body Name"),
         plugin_tl("Latitude"),
         plugin_tl("Longitude"),
@@ -613,32 +617,48 @@ def build_plugin_ui(frame):
         plugin_tl("Share")
     ]
     for col, header in enumerate(headers):
-        nb.Label(frame, text=header, font=('TkDefaultFont', 9, 'bold')).grid(row=row, column=col, padx=2, pady=2, sticky="w")
-    row += 1
+        # No padding for copy icon column
+        padding = 0 if col == 1 else 2
+        nb.Label(table_frame, text=header, font=('TkDefaultFont', 9, 'bold')).grid(row=table_row, column=col, padx=padding, pady=2, sticky="w")
+    table_row += 1
 
     POI_VARS = []
     for idx, poi in enumerate(ALL_POIS):
         active_var = tk.BooleanVar(value=poi.get("active", True))
-        cb = nb.Checkbutton(frame, variable=active_var, width=2)
-        cb.grid(row=row, column=0, sticky="w", padx=(0, 0))
+        cb = nb.Checkbutton(table_frame, variable=active_var, width=2)
+        try:
+            cb.configure(background="white")
+        except:
+            pass  # If background can't be set, continue anyway
+        cb.grid(row=table_row, column=0, sticky="w", padx=(0, 0))
         POI_VARS.append(active_var)
 
-        nb.Label(frame, text=poi.get("body", ""), anchor="w").grid(row=row, column=1, padx=2, pady=2, sticky="w")
-        nb.Label(frame, text=poi.get("lat", ""), anchor="w").grid(row=row, column=2, padx=2, pady=2, sticky="w")
-        nb.Label(frame, text=poi.get("lon", ""), anchor="w").grid(row=row, column=3, padx=2, pady=2, sticky="w")
+        # Copy system name button (using Label for minimal space)
+        def copy_system(body_name):
+            system, _ = split_system_and_body(body_name)
+            table_frame.clipboard_clear()
+            table_frame.clipboard_append(system)
+        
+        copy_label = nb.Label(table_frame, text="📋", cursor="hand2")
+        copy_label.grid(row=table_row, column=1, sticky="e", padx=(0, 2))
+        copy_label.bind("<Button-1>", lambda e, b=poi.get("body", ""): copy_system(b))
+
+        nb.Label(table_frame, text=poi.get("body", ""), anchor="w").grid(row=table_row, column=2, padx=2, pady=2, sticky="w")
+        nb.Label(table_frame, text=poi.get("lat", ""), anchor="w").grid(row=table_row, column=3, padx=2, pady=2, sticky="w")
+        nb.Label(table_frame, text=poi.get("lon", ""), anchor="w").grid(row=table_row, column=4, padx=2, pady=2, sticky="w")
 
         desc_var = tk.StringVar(value=poi.get("description", ""))
-        desc_entry = nb.EntryMenu(frame, textvariable=desc_var, width=28)
-        desc_entry.grid(row=row, column=4, sticky="w", padx=(2,2))
+        desc_entry = nb.EntryMenu(table_frame, textvariable=desc_var, width=28)
+        desc_entry.grid(row=table_row, column=5, sticky="w", padx=(2,2))
 
-        delbtn = nb.Button(frame, text=plugin_tl("Delete"), command=lambda i=idx: remove_poi(i, frame), width=7)
-        delbtn.grid(row=row, column=5, sticky="w", padx=(2,2))
+        delbtn = nb.Button(table_frame, text=plugin_tl("Delete"), command=lambda i=idx: remove_poi(i, frame), width=7)
+        delbtn.grid(row=table_row, column=6, sticky="w", padx=(2,2))
 
-        savebtn = nb.Button(frame, text=plugin_tl("Save"), state='disabled', width=7)
-        savebtn.grid(row=row, column=6, sticky="w", padx=(2,2))
+        savebtn = nb.Button(table_frame, text=plugin_tl("Save"), state='disabled', width=7)
+        savebtn.grid(row=table_row, column=7, sticky="w", padx=(2,2))
 
-        sharebtn = nb.Button(frame, text=plugin_tl("Share"), command=lambda i=idx: show_share_popup(frame, i), width=7)
-        sharebtn.grid(row=row, column=7, sticky="w", padx=(2,2))
+        sharebtn = nb.Button(table_frame, text=plugin_tl("Share"), command=lambda i=idx: show_share_popup(frame, i), width=7)
+        sharebtn.grid(row=table_row, column=8, sticky="w", padx=(2,2))
 
         def on_desc_change(*args, i=idx, v=desc_var, btn=savebtn):
             current = v.get()
@@ -647,17 +667,18 @@ def build_plugin_ui(frame):
 
         desc_var.trace_add('write', lambda *args, i=idx, v=desc_var, btn=savebtn: on_desc_change(i=i, v=v, btn=btn))
         savebtn.config(command=lambda i=idx, v=desc_var, btn=savebtn: save_desc(i, v, frame, btn))
-        row += 1
+        table_row += 1
 
-    # ------ Grid column configuration for clean layout ------
-    frame.grid_columnconfigure(0, minsize=22, weight=0)     # Active (very narrow)
-    frame.grid_columnconfigure(1, minsize=120, weight=0)    # Body Name
-    frame.grid_columnconfigure(2, minsize=84, weight=0)     # Latitude
-    frame.grid_columnconfigure(3, minsize=100, weight=0)    # Longitude
-    frame.grid_columnconfigure(4, minsize=210, weight=2)    # Description (wide & expands)
-    frame.grid_columnconfigure(5, minsize=60, weight=0)     # Delete
-    frame.grid_columnconfigure(6, minsize=70, weight=0)     # Save
-    frame.grid_columnconfigure(7, minsize=70, weight=0)     # Share
+    # ------ Grid column configuration for clean layout (only for table_frame) ------
+    table_frame.grid_columnconfigure(0, minsize=22, weight=0)     # Active (very narrow)
+    table_frame.grid_columnconfigure(1, minsize=15, weight=0)     # Copy system icon (very minimal)
+    table_frame.grid_columnconfigure(2, minsize=120, weight=0)    # Body Name
+    table_frame.grid_columnconfigure(3, minsize=84, weight=0)     # Latitude
+    table_frame.grid_columnconfigure(4, minsize=100, weight=0)    # Longitude
+    table_frame.grid_columnconfigure(5, minsize=210, weight=2)    # Description (wide & expands)
+    table_frame.grid_columnconfigure(6, minsize=60, weight=0)     # Delete
+    table_frame.grid_columnconfigure(7, minsize=70, weight=0)     # Save
+    table_frame.grid_columnconfigure(8, minsize=70, weight=0)     # Share
 
 
 def split_system_and_body(full_body_name):
