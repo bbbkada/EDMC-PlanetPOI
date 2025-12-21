@@ -106,27 +106,6 @@
   },
   {
     "body": "Wredguia PI-B d13-35 1",
-    "lat": 18.23476,
-    "lon": 17.175863,
-    "description": "this place",
-    "active": true
-  },
-  {
-    "body": "Wredguia PI-B d13-35 1",
-    "lat": 18.385363,
-    "lon": -13.013615,
-    "description": "other place",
-    "active": true
-  },
-  {
-    "body": "Wredguia PI-B d13-35 1",
-    "lat": 9.663158,
-    "lon": -5.172708,
-    "description": "ftgh",
-    "active": true
-  },
-  {
-    "body": "Wredguia PI-B d13-35 1",
     "lat": 9.148067,
     "lon": -10.073007,
     "description": "third",

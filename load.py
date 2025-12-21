@@ -148,7 +148,12 @@ def show_config_dialog(parent_frame):
     # Add close button at bottom first (pack order matters!)
     button_frame = tk.Frame(dialog, bg="#ffffff")
     button_frame.pack(side=tk.BOTTOM, pady=(5, 15), padx=15)
-    tk.Button(button_frame, text="Close", command=dialog.destroy, width=10).pack()
+    
+    def close_and_refresh():
+        dialog.destroy()
+        redraw_plugin_app()
+    
+    tk.Button(button_frame, text="Close", command=close_and_refresh, width=10).pack()
     
     # Create container for scrollable frame (takes remaining space)
     container_frame = tk.Frame(dialog, bg="#ffffff")
