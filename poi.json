@@ -103,12 +103,5 @@
     "lon": "",
     "description": "Home",
     "active": true
-  },
-  {
-    "body": "Wredguia PI-B d13-35 1",
-    "lat": 9.148067,
-    "lon": -10.073007,
-    "description": "third",
-    "active": true
   }
 ]

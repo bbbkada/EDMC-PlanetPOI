@@ -209,7 +209,7 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
     
     # Paste button at the top - function defined later after all variables exist
     paste_btn_placeholder = None  # Will be created after variables are defined
-    paste_btn = tk.Button(dialog, text="📋 Paste Link", width=12)
+    paste_btn = tk.Button(dialog, text="📋 Paste shared link", width=18)
     paste_btn.grid(row=row, column=1, sticky="e", padx=(10, 20), pady=(5, 10))
     row += 1
     
