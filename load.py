@@ -328,13 +328,22 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
             full_body = f"{system} {formatted_body}"
         else:
             full_body = system
-            
-        try:
-            lat = float(lat_var.get().replace(",", "."))
-            lon = float(lon_var.get().replace(",", "."))
-        except ValueError:
-            status_label.config(text="Invalid latitude or longitude!", fg="red")
-            return
+        
+        # Allow empty lat/lon for system-only POIs
+        lat_str = lat_var.get().strip().replace(",", ".")
+        lon_str = lon_var.get().strip().replace(",", ".")
+        
+        if lat_str and lon_str:
+            try:
+                lat = float(lat_str)
+                lon = float(lon_str)
+            except ValueError:
+                status_label.config(text="Invalid latitude or longitude!", fg="red")
+                return
+        else:
+            # Store as empty strings for system-only POIs
+            lat = ""
+            lon = ""
         
         desc = desc_var.get().strip()
         new_poi = {
@@ -365,7 +374,7 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
         system_entry.focus()
 
 def redraw_plugin_app():
-    global PLUGIN_FRAME
+    global PLUGIN_FRAME, PLUGIN_PARENT
     if PLUGIN_FRAME:
         try:
             # Only destroy children of the persistent frame, not the frame itself
@@ -376,6 +385,8 @@ def redraw_plugin_app():
             # Apply theme to updated widgets
             PLUGIN_FRAME.update_idletasks()
             theme.update(PLUGIN_FRAME)
+            if PLUGIN_PARENT:
+                theme.update(PLUGIN_PARENT)
         except Exception as ex:
             print("PlanetPOI: redraw_plugin_app failed:", ex)
 
@@ -417,6 +428,7 @@ def build_plugin_content(frame):
                      width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e", padx=(0, 2))
             tk.Button(header_frame, text="🔧", command=lambda: show_config_dialog(frame), 
                      width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=2, sticky="e")
+            theme.update(header_frame)
             row += 1
             for idx, poi in enumerate(matching_system_pois):
                 desc = poi.get("description", "")
@@ -445,6 +457,7 @@ def build_plugin_content(frame):
                      width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e", padx=(0, 2))
             tk.Button(header_frame, text="🔧", command=lambda: show_config_dialog(frame), 
                      width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=2, sticky="e")
+            theme.update(header_frame)
         
         return
 
@@ -466,6 +479,7 @@ def build_plugin_content(frame):
              width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e", padx=(0, 2))
     tk.Button(header_frame, text="⚡", command=lambda: show_config_dialog(frame), 
              width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=2, sticky="e")
+    theme.update(header_frame)
     row += 1
 
     for idx, poi in enumerate(matching_pois):
@@ -509,8 +523,8 @@ def plugin_app(parent, cmdr=None, is_beta=None):
     global PLUGIN_PARENT, PLUGIN_FRAME
     PLUGIN_PARENT = parent
     
-    # Create persistent frame - use tk.Frame as root, with tk widgets inside
-    PLUGIN_FRAME = tk.Frame(parent, highlightthickness=1) # ,highlightbackground="gray"
+    # Create persistent frame - use tk.Frame, let theme handle background
+    PLUGIN_FRAME = tk.Frame(parent, highlightthickness=1)
     PLUGIN_FRAME.grid(row=0, column=0, columnspan=2, sticky="nsew")
     
     # Build initial content

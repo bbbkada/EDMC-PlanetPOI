@@ -75,5 +75,40 @@
     "lon": -45.13,
     "description": "Mystery POI",
     "active": true
+  },
+  {
+    "body": "HIP 100000",
+    "lat": "",
+    "lon": "",
+    "description": "Coolt system",
+    "active": true
+  },
+  {
+    "body": "HIP 36601 C 1 a",
+    "lat": -68.2,
+    "lon": 137.2,
+    "description": "Crystalline shards Polonium",
+    "active": true
+  },
+  {
+    "body": "HIP 36608 C 1 a",
+    "lat": -68.2,
+    "lon": 137.2,
+    "description": "Crystalline shards Polonium",
+    "active": true
+  },
+  {
+    "body": "Groa Eaeb AA-D c1-0",
+    "lat": "",
+    "lon": "",
+    "description": "Hola",
+    "active": true
+  },
+  {
+    "body": "HIP 10001",
+    "lat": "",
+    "lon": "",
+    "description": "Ogg",
+    "active": true
   }
 ]
