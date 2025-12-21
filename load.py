@@ -112,26 +112,29 @@ def plugin_start3(plugin_dir: str) -> str:
     
     return "PlanetPOI"
 
+def get_ui_scale():
+    """Get UI scale factor from EDMC config (default 100%)"""
+    try:
+        scale = config.get_int("ui_scale")
+        if scale == 0:
+            scale = 100
+        return scale / 100.0
+    except:
+        return 1.0
 
-def show_add_poi_dialog(parent_frame, prefill_body=None):
-    """Show dialog to add a new POI"""
-    dialog = tk.Toplevel(parent_frame)
-    dialog.title("Add New POI")
-    dialog.geometry("480x420")
-    dialog.transient(parent_frame)
-    dialog.grab_set()
-    
-    # Center the dialog
-    dialog.update_idletasks()
-    x = parent_frame.winfo_rootx() + (parent_frame.winfo_width() // 2) - (dialog.winfo_width() // 2)
-    y = parent_frame.winfo_rooty() + (parent_frame.winfo_height() // 2) - (dialog.winfo_height() // 2)
-    dialog.geometry(f"+{x}+{y}")
+def scale_geometry(width, height, scale=None):
+    """Scale dialog geometry with softer scaling curve"""
+    if scale is None:
+        scale = get_ui_scale()
+    # Use softer scaling: 75% of scale + 25% base to avoid over-scaling
+    adjusted_scale = 0.72 * scale + 0.25
+    return f"{int(width * adjusted_scale)}x{int(height * adjusted_scale)}"
 
 def show_config_dialog(parent_frame):
     """Show config dialog with settings from plugin_prefs"""
     dialog = tk.Toplevel(parent_frame)
     dialog.title("PlanetPOI Configuration")
-    dialog.geometry("1400x550")
+    dialog.geometry(scale_geometry(1200, 550))
     dialog.configure(bg="#ffffff")
     dialog.transient(parent_frame)
     dialog.grab_set()
@@ -159,7 +162,7 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
     """Show dialog to add a new POI"""
     dialog = tk.Toplevel(parent_frame)
     dialog.title("Add New POI")
-    dialog.geometry("480x420")
+    dialog.geometry(scale_geometry(480, 360))
     dialog.transient(parent_frame)
     dialog.grab_set()
     
@@ -831,7 +834,7 @@ def show_share_popup(parent, idx):
     # Create popup window
     popup = tk.Toplevel(parent)
     popup.title(plugin_tl("Share POI"))
-    popup.geometry("500x170")
+    popup.geometry(scale_geometry(500, 170))
     popup.resizable(False, False)
     popup.transient(parent)
     
