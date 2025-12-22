@@ -9,7 +9,7 @@ in setting you can adjust max poi´s to show, if body has multiple saved. Adjust
 You can share poi with a link, to other commanders.   
 ![Screenshot](images/EDMC_Settings.png)  
 
-You add new poi´s by pressing the + button in the gui, System name is verified against Spansh API.
+Add new poi´s by pressing the + button in the gui, System name is verified against Spansh API.
 Current position will be autofilled if in orbit of a body, otherwise only current system.
 If you have a shared link in clipboard, you can paste a shared poi with ctrl+V or the button.
 
