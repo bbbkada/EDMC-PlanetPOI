@@ -1,0 +1,70 @@
+Elite Dangerous POI Export
+==================================================
+
+Body: HIP 36601 C 3 b
+Latitude: -62.500000
+Longitude: -127.200000
+Description: Crystalline shards Tellerium
+Active: True
+--------------------------------------------------
+Body: Synuefe AA-P c22-7 5 c
+Latitude: 28.970000
+Longitude: 133.480000
+Description: Brain trees Polonium
+Active: True
+--------------------------------------------------
+Body: HIP 36601 C 1 a
+Latitude: -68.200000
+Longitude: 137.200000
+Description: Crystalline shards Polonium
+Active: True
+--------------------------------------------------
+Body: HIP 36601 C 1 d
+Latitude: -49.200000
+Longitude: 127.100000
+Description: Crystalline shards Ruthenium
+Active: True
+--------------------------------------------------
+Body: HIP 36601 C 5 a
+Latitude: 3.550000
+Longitude: 111.540000
+Description: Crystalline shards Technetium
+Active: True
+--------------------------------------------------
+Body: Outotz LS-K d8-3 B 5 a
+Latitude: -1.921600
+Longitude: -145.701300
+Description: Crystalline shards Yttrium
+Active: True
+--------------------------------------------------
+Body: Outotz LS-K d8-3 B 5 c
+Latitude: -62.490500
+Longitude: 80.242600
+Description: Crystalline shards Antimony
+Active: True
+--------------------------------------------------
+Body: HR 3230 3 a a
+Latitude: 31.779400
+Longitude: -118.626000
+Description: Brain trees Selenium
+Active: True
+--------------------------------------------------
+Body: HR 3230 3 a a
+Latitude: 32.247139
+Longitude: -118.592766
+Description: Selenium 2
+Active: True
+--------------------------------------------------
+Body: Orrere 2 b
+Latitude: 43.821400
+Longitude: -173.980000
+Description: Crashed Anaconda
+Active: True
+--------------------------------------------------
+Body: HIP 12248 5 a
+Latitude: 10.530000
+Longitude: -45.130000
+Description: Mystery POI
+Active: True
+--------------------------------------------------
+Body: HIP 100000

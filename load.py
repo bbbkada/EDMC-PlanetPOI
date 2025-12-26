@@ -66,11 +66,51 @@ def format_body_name(body_name):
     
     return "".join(result)
 
+def get_full_body_name(poi):
+    """Get full body name from POI (combines system + body)."""
+    system = poi.get("system", "")
+    body = poi.get("body", "")
+    if body:
+        return f"{system} {body}"
+    return system
+
 def load_pois():
     global ALL_POIS
     if os.path.isfile(POI_FILE):
         with open(POI_FILE, "r", encoding="utf8") as f:
-            ALL_POIS = json.load(f)
+            data = json.load(f)
+            # Migrate old format to new folder-based format with separate system/body
+            if data and isinstance(data, list):
+                migrated = False
+                for item in data:
+                    # Check if POI needs migration (has old "body" field but not "system" field)
+                    if item.get("type") == "poi" and "body" in item and "system" not in item:
+                        # Old format: {"body": "HIP 36601 C 3 b"}
+                        # New format: {"system": "HIP 36601", "body": "C 3 b"}
+                        full_body = item.get("body", "")
+                        system_name, body_part = split_system_and_body(full_body)
+                        item["system"] = system_name
+                        item["body"] = body_part
+                        migrated = True
+                        print(f"Migrated POI: {full_body} -> system={system_name}, body={body_part}")
+                    # Also ensure old non-typed POIs get type field
+                    elif "type" not in item:
+                        item["type"] = "poi"
+                        if "body" in item and "system" not in item:
+                            full_body = item.get("body", "")
+                            system_name, body_part = split_system_and_body(full_body)
+                            item["system"] = system_name
+                            item["body"] = body_part
+                            migrated = True
+                
+                if migrated:
+                    print("Saving migrated POI format...")
+                    ALL_POIS = data
+                    save_pois()  # Save migrated format
+                else:
+                    ALL_POIS = data
+            else:
+                ALL_POIS = []
     else:
         ALL_POIS = []
 
@@ -79,6 +119,67 @@ def save_pois():
     print("saving pois")
     with open(POI_FILE, "w", encoding="utf8") as f:
         json.dump(ALL_POIS, f, indent=2)
+
+def export_pois_to_file(parent_frame):
+    """Export POIs to a user-selected JSON file."""
+    from tkinter import filedialog
+    try:
+        file_path = filedialog.asksaveasfilename(
+            parent=parent_frame,
+            title="Export POIs",
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+            initialfile="poi_export.json"
+        )
+        if file_path:
+            with open(file_path, "w", encoding="utf8") as f:
+                json.dump(ALL_POIS, f, indent=2)
+            print(f"PPOI: POIs exported to {file_path}")
+    except Exception as ex:
+        print(f"PPOI: Error exporting POIs: {ex}")
+
+def import_pois_from_file(parent_frame):
+    """Import POIs from a user-selected JSON file."""
+    from tkinter import filedialog, messagebox
+    global ALL_POIS
+    try:
+        file_path = filedialog.askopenfilename(
+            parent=parent_frame,
+            title="Import POIs",
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+        )
+        if file_path:
+            with open(file_path, "r", encoding="utf8") as f:
+                imported_pois = json.load(f)
+            
+            # Ask user if they want to replace or merge
+            if ALL_POIS:  # Only ask if there are existing POIs
+                result = messagebox.askyesnocancel(
+                    "Import POIs",
+                    "Replace existing POIs?\n\nYes = Replace all existing POIs\nNo = Add to existing POIs\nCancel = Cancel import",
+                    parent=parent_frame
+                )
+                if result is None:  # Cancel
+                    return
+                elif result:  # Yes - Replace
+                    ALL_POIS = imported_pois if isinstance(imported_pois, list) else []
+                else:  # No - Merge
+                    ALL_POIS.extend(imported_pois if isinstance(imported_pois, list) else [])
+            else:
+                # No existing POIs, just load the imported ones
+                ALL_POIS = imported_pois if isinstance(imported_pois, list) else []
+            
+            save_pois()
+            
+            # Rebuild UI to show imported POIs
+            for widget in parent_frame.winfo_children():
+                widget.destroy()
+            build_plugin_ui(parent_frame)
+            
+            print(f"PPOI: POIs imported from {file_path}")
+    except Exception as ex:
+        print(f"PPOI: Error importing POIs: {ex}")
 
 def plugin_start3(plugin_dir: str) -> str:
     global ALT_VAR, ROWS_VAR, LEFT_VAR, ALL_POIS, CURRENT_SYSTEM, last_lat, last_lon, last_body
@@ -163,18 +264,30 @@ def show_config_dialog(parent_frame):
     prefs_frame = plugin_prefs(container_frame, None, False)
     prefs_frame.pack(fill=tk.BOTH, expand=True)
 
-def show_add_poi_dialog(parent_frame, prefill_body=None):
-    """Show dialog to add a new POI"""
+def show_add_poi_dialog(parent_frame, prefill_system=None, edit_poi=None):
+    """Show dialog to add a new POI or edit existing POI"""
     dialog = tk.Toplevel(parent_frame)
-    dialog.title("Add New POI")
-    dialog.geometry(scale_geometry(480, 360))
+    is_edit_mode = edit_poi is not None
+    dialog.title("Edit POI" if is_edit_mode else "Add New POI")
+    dialog.geometry(scale_geometry(550, 650))
     dialog.transient(parent_frame)
     dialog.grab_set()
     
-    # Center the dialog
+    # Center the dialog and ensure it stays within screen bounds
     dialog.update_idletasks()
-    x = parent_frame.winfo_rootx() + (parent_frame.winfo_width() // 2) - (dialog.winfo_width() // 2)
-    y = parent_frame.winfo_rooty() + (parent_frame.winfo_height() // 2) - (dialog.winfo_height() // 2)
+    screen_width = dialog.winfo_screenwidth()
+    screen_height = dialog.winfo_screenheight()
+    dialog_width = dialog.winfo_width()
+    dialog_height = dialog.winfo_height()
+    
+    # Calculate centered position
+    x = parent_frame.winfo_rootx() + (parent_frame.winfo_width() // 2) - (dialog_width // 2)
+    y = parent_frame.winfo_rooty() + (parent_frame.winfo_height() // 2) - (dialog_height // 2)
+    
+    # Ensure dialog stays within screen bounds
+    x = max(0, min(x, screen_width - dialog_width))
+    y = max(0, min(y, screen_height - dialog_height))
+    
     dialog.geometry(f"+{x}+{y}")
     
     # Determine auto-fill values
@@ -182,25 +295,31 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
     auto_body = ""
     auto_lat = ""
     auto_lon = ""
+    auto_desc = ""
+    auto_notes = ""
     
-    # If we have a current body position, extract system and body parts
-    if last_body and last_lat is not None and last_lon is not None:
-        # last_body is full name like "HIP 87621 2 a"
-        # Try to extract system and body
-        if auto_system and last_body.startswith(auto_system):
-            # Body is everything after the system name
-            auto_body = last_body[len(auto_system):].strip()
-            auto_lat = str(last_lat)
-            auto_lon = str(last_lon)
-    
-    # If prefill_body provided (from button click), use it to determine system/body
-    if prefill_body:
-        if auto_system and prefill_body.startswith(auto_system):
-            auto_body = prefill_body[len(auto_system):].strip()
-        else:
-            # If prefill_body doesn't match current system, just use it as-is in system field
-            auto_system = prefill_body
-            auto_body = ""
+    # If editing existing POI, prefill with its data
+    if is_edit_mode:
+        auto_system = edit_poi.get("system", "")
+        auto_body = edit_poi.get("body", "")
+        lat_val = edit_poi.get("lat", "")
+        lon_val = edit_poi.get("lon", "")
+        auto_lat = str(lat_val) if lat_val not in ["", None] else ""
+        auto_lon = str(lon_val) if lon_val not in ["", None] else ""
+        auto_desc = edit_poi.get("description", "")
+        auto_notes = edit_poi.get("notes", "")
+    else:
+        # If we have a current body position, extract system and body parts
+        if last_body:
+            # last_body is system name for system POIs
+            auto_system = last_body
+            if last_lat is not None and last_lon is not None:
+                auto_lat = str(last_lat)
+                auto_lon = str(last_lon)
+        
+        # If prefill_system provided (from button click or folder), use it
+        if prefill_system:
+            auto_system = prefill_system
     
     # Configure dialog grid
     dialog.grid_columnconfigure(1, weight=1)
@@ -247,9 +366,16 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
     row += 1
     
     tk.Label(dialog, text="Description:").grid(row=row, column=0, sticky="w", padx=10, pady=5)
-    desc_var = tk.StringVar()
+    desc_var = tk.StringVar(value=auto_desc)
     desc_entry = tk.Entry(dialog, textvariable=desc_var, width=30)
     desc_entry.grid(row=row, column=1, padx=(10, 20), pady=5, sticky="ew")
+    row += 1
+    
+    tk.Label(dialog, text="Notes:").grid(row=row, column=0, sticky="nw", padx=10, pady=5)
+    notes_text = tk.Text(dialog, width=40, height=8, wrap=tk.WORD, font="TkDefaultFont")
+    notes_text.grid(row=row, column=1, padx=(10, 20), pady=5, sticky="ew")
+    if auto_notes:
+        notes_text.insert("1.0", auto_notes)
     row += 1
     
     status_label = tk.Label(dialog, text="", fg="red")
@@ -263,9 +389,9 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
             poi_data = parse_share_url(clipboard_text)
             
             if poi_data:
-                # Extract system and body from full body name using intelligent split
-                full_body = poi_data.get('body', '')
-                system_name, body_part = split_system_and_body(full_body)
+                # Use system and body from parsed data (already in new format)
+                system_name = poi_data.get('system', '')
+                body_part = poi_data.get('body', '')
                 
                 # Fill in all fields
                 system_entry.set_text(system_name, placeholder_style=False)
@@ -273,6 +399,8 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
                 lat_var.set(str(poi_data.get('lat', '')))
                 lon_var.set(str(poi_data.get('lon', '')))
                 desc_var.set(poi_data.get('description', ''))
+                notes_text.delete("1.0", tk.END)
+                notes_text.insert("1.0", poi_data.get('notes', ''))
                 
                 status_label.config(text="✓ Loaded from shared link", fg="green")
             else:
@@ -300,9 +428,9 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
                     elif hasattr(widget, 'delete'):
                         widget.delete(0, tk.END)
                     
-                    # Extract system and body from full body name using intelligent split
-                    full_body = poi_data.get('body', '')
-                    system_name, body_part = split_system_and_body(full_body)
+                    # Use system and body from parsed data (already in new format)
+                    system_name = poi_data.get('system', '')
+                    body_part = poi_data.get('body', '')
                     
                     # Fill in all fields
                     system_entry.set_text(system_name, placeholder_style=False)
@@ -310,6 +438,8 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
                     lat_var.set(str(poi_data.get('lat', '')))
                     lon_var.set(str(poi_data.get('lon', '')))
                     desc_var.set(poi_data.get('description', ''))
+                    notes_text.delete("1.0", tk.END)
+                    notes_text.insert("1.0", poi_data.get('notes', ''))
                     
                     status_label.config(text="✓ Auto-loaded from shared link", fg="green")
         except Exception:
@@ -321,6 +451,7 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
     lat_entry.bind('<Control-v>', on_paste)
     lon_entry.bind('<Control-v>', on_paste)
     desc_entry.bind('<Control-v>', on_paste)
+    notes_text.bind('<Control-v>', on_paste)
     
     def save_and_close():
         system = system_var.get().strip()
@@ -333,9 +464,8 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
         # Format body name with proper spacing and capitalization
         if body:
             formatted_body = format_body_name(body)
-            full_body = f"{system} {formatted_body}"
         else:
-            full_body = system
+            formatted_body = ""
         
         # Allow empty lat/lon for system-only POIs
         lat_str = lat_var.get().strip().replace(",", ".")
@@ -354,16 +484,33 @@ def show_add_poi_dialog(parent_frame, prefill_body=None):
             lon = ""
         
         desc = desc_var.get().strip()
-        new_poi = {
-            "body": full_body,
-            "lat": lat,
-            "lon": lon,
-            "description": desc,
-            "active": True
-        }
-        ALL_POIS.append(new_poi)
-        print(f"PPOI: Added new POI: {new_poi}")
-        print(f"PPOI: Total POIs now: {len(ALL_POIS)}")
+        notes = notes_text.get("1.0", tk.END).strip()
+        
+        if is_edit_mode:
+            # Update existing POI
+            edit_poi["system"] = system
+            edit_poi["body"] = formatted_body
+            edit_poi["lat"] = lat
+            edit_poi["lon"] = lon
+            edit_poi["description"] = desc
+            edit_poi["notes"] = notes
+            print(f"PPOI: Updated POI: system={system}, body={formatted_body}")
+        else:
+            # Create new POI
+            new_poi = {
+                "type": "poi",
+                "system": system,
+                "body": formatted_body,
+                "lat": lat,
+                "lon": lon,
+                "description": desc,
+                "notes": notes,
+                "active": True
+            }
+            ALL_POIS.append(new_poi)
+            print(f"PPOI: Added new POI: system={system}, body={formatted_body}")
+            print(f"PPOI: Total items now: {len(ALL_POIS)}")
+        
         save_pois()
         redraw_plugin_app()
         dialog.destroy()
@@ -409,6 +556,412 @@ def journal_entry(cmdr, is_beta, system, station, entry, state):
         CURRENT_SYSTEM = entry['StarSystem']
         redraw_plugin_app()
 
+def find_item_path(items, target_item):
+    """Find path to item in tree structure. Returns (path_list, parent_list, index)."""
+    def search(children, path=[], parents=[]):
+        for idx, item in enumerate(children):
+            if item is target_item:
+                return (path + [item.get("name", "POI")], parents, idx)
+            if item.get("type") == "folder":
+                result = search(item.get("children", []), path + [item.get("name")], parents + [item])
+                if result:
+                    return result
+        return None
+    return search(items)
+
+def get_all_pois_flat(items):
+    """Get flat list of all POIs (not folders) from tree structure."""
+    pois = []
+    def traverse(children):
+        for item in children:
+            if item.get("type") == "poi":
+                pois.append(item)
+            elif item.get("type") == "folder":
+                traverse(item.get("children", []))
+    traverse(items)
+    return pois
+
+def create_folder(parent_children, folder_name):
+    """Create new folder."""
+    new_folder = {
+        "type": "folder",
+        "name": folder_name,
+        "children": []
+    }
+    parent_children.append(new_folder)
+    save_pois()
+    return new_folder
+
+def delete_item(items, target_item):
+    """Delete item (POI or folder) from tree."""
+    def remove_from(children):
+        for idx, item in enumerate(children):
+            if item is target_item:
+                children.pop(idx)
+                return True
+            if item.get("type") == "folder":
+                if remove_from(item.get("children", [])):
+                    return True
+        return False
+    if remove_from(items):
+        save_pois()
+        return True
+    return False
+
+def move_item(items, target_item, new_parent_children):
+    """Move item to new parent folder."""
+    # First remove from current location
+    if delete_item(items, target_item):
+        # Then add to new location
+        new_parent_children.append(target_item)
+        save_pois()
+        return True
+    return False
+
+def copy_poi_systemname(poi):
+    """Copy POI system name to clipboard."""
+    try:
+        system_name = poi.get("system", "")
+        # Get root window for clipboard
+        root = tk._default_root
+        if root:
+            root.clipboard_clear()
+            root.clipboard_append(system_name)
+            print(f"Copied system name to clipboard: {system_name}")
+    except Exception as ex:
+        print(f"Error copying system name: {ex}")
+
+def edit_poi_in_menu(frame, poi):
+    """Open edit dialog for POI from menu - uses same dialog as add POI."""
+    try:
+        show_add_poi_dialog(frame, prefill_system=poi.get("system"), edit_poi=poi)
+    except Exception as ex:
+        print(f"Error editing POI: {ex}")
+
+def share_poi_link(poi):
+    """Copy POI share link to clipboard."""
+    try:
+        share_url = generate_share_url(poi)
+        # Get root window for clipboard
+        root = tk._default_root
+        if root:
+            root.clipboard_clear()
+            root.clipboard_append(share_url)
+            print(f"Copied share link to clipboard: {share_url}")
+    except Exception as ex:
+        print(f"Error sharing POI: {ex}")
+
+def show_menu_dropdown(frame, button, body_name):
+    """Show dropdown menu when hamburger icon is clicked."""
+    # Create menu widget that follows EDMC theme
+    menu = tk.Menu(button, tearoff=0)
+    
+    # Add top menu items
+    menu.add_command(label=plugin_tl("Add new POI"), command=lambda: show_add_poi_dialog(frame, body_name))
+    menu.add_command(label=plugin_tl("Add root folder"), command=lambda: show_add_folder_dialog(frame, ALL_POIS))
+    menu.add_command(label=plugin_tl("Settings"), command=lambda: show_config_dialog(frame))
+    menu.add_separator()
+    
+    # Build hierarchical menu structure
+    def add_items_to_menu(parent_menu, items, indent=0):
+        """Recursively add folders and POIs to menu."""
+        # Sort items alphabetically by folder name or POI description
+        sorted_items = sorted(items, key=lambda x: x.get("name", "").lower() if x.get("type") == "folder" else x.get("description", "").lower())
+        for item in sorted_items:
+            item_type = item.get("type", "poi")
+            
+            if item_type == "folder":
+                folder_name = item.get("name", "Unnamed Folder")
+                folder_submenu = tk.Menu(parent_menu, tearoff=0)
+                
+                # Add folder operations
+                folder_submenu.add_command(
+                    label=plugin_tl("Add new POI"),
+                    command=lambda i=item: show_add_poi_dialog(frame, body_name)
+                )
+                folder_submenu.add_command(
+                    label=plugin_tl("Add folder"),
+                    command=lambda i=item: show_add_folder_dialog(frame, i.get("children", []))
+                )
+                folder_submenu.add_command(
+                    label=plugin_tl("Move folder"),
+                    command=lambda i=item: show_move_dialog(frame, i, "folder")
+                )
+                folder_submenu.add_command(
+                    label=plugin_tl("Delete folder"),
+                    command=lambda i=item: confirm_delete_item(frame, i, "folder")
+                )
+                folder_submenu.add_separator()
+                
+                # Add children recursively
+                children = item.get("children", [])
+                if children:
+                    add_items_to_menu(folder_submenu, children, indent + 1)
+                else:
+                    folder_submenu.add_command(label=plugin_tl("(Empty)"), state='disabled')
+                
+                # Add folder to parent menu
+                prefix = "  " * indent + "📁 "
+                parent_menu.add_cascade(label=f"{prefix}{folder_name}", menu=folder_submenu)
+                try:
+                    theme.update(folder_submenu)
+                except Exception:
+                    pass
+                    
+            elif item_type == "poi":
+                desc = item.get("description", "").strip()
+                if not desc:
+                    continue  # Skip POIs without description
+                
+                # Check if POI matches current location
+                poi_system = item.get("system", "")
+                poi_body = item.get("body", "")
+                show_poi = False
+                if last_body and poi_system == last_body:
+                    show_poi = True
+                elif CURRENT_SYSTEM and poi_system == CURRENT_SYSTEM:
+                    show_poi = True
+                elif not last_body and not CURRENT_SYSTEM:
+                    show_poi = True
+                
+                if not show_poi:
+                    continue
+                
+                # Create submenu for POI
+                poi_submenu = tk.Menu(parent_menu, tearoff=0)
+                poi_submenu.add_command(
+                    label=plugin_tl("Copy systemname"),
+                    command=lambda p=item: copy_poi_systemname(p)
+                )
+                poi_submenu.add_command(
+                    label=plugin_tl("Share link"),
+                    command=lambda p=item: share_poi_link(p)
+                )
+                poi_submenu.add_command(
+                    label=plugin_tl("Edit"),
+                    command=lambda f=frame, p=item: edit_poi_in_menu(f, p)
+                )
+                poi_submenu.add_command(
+                    label=plugin_tl("Move POI"),
+                    command=lambda p=item: show_move_dialog(frame, p, "poi")
+                )
+                poi_submenu.add_command(
+                    label=plugin_tl("Delete POI"),
+                    command=lambda p=item: confirm_delete_item(frame, p, "poi")
+                )
+                
+                # Add POI to parent menu with icon
+                # Use different icons for system POIs (no lat/lon) vs planet POIs (with lat/lon)
+                lat = item.get("lat")
+                lon = item.get("lon")
+                has_coords = lat not in ["", None] and lon not in ["", None]
+                poi_icon = "🌍" if has_coords else "⭐"  # Planet POI vs System POI
+                
+                prefix = "  " * indent + poi_icon + " "
+                menu_label = desc if len(desc) <= 30 else desc[:27] + "..."
+                parent_menu.add_cascade(label=f"{prefix}{menu_label}", menu=poi_submenu)
+                try:
+                    theme.update(poi_submenu)
+                except Exception:
+                    pass
+    
+    # Add all items from root level
+    add_items_to_menu(menu, ALL_POIS)
+    
+    # Apply theme to menu
+    try:
+        theme.update(menu)
+    except Exception:
+        pass
+    
+    # Show menu at button position
+    try:
+        x = button.winfo_rootx()
+        y = button.winfo_rooty() + button.winfo_height()
+        menu.post(x, y)
+    except Exception as ex:
+        print(f"Error showing menu: {ex}")
+
+def open_poi_folder():
+    """Open the folder containing poi.json."""
+    import subprocess
+    folder = os.path.dirname(POI_FILE)
+    try:
+        os.startfile(folder)
+    except Exception as ex:
+        print(f"Error opening folder: {ex}")
+
+def export_pois():
+    """Export POIs to a text file."""
+    export_file = os.path.join(os.path.dirname(__file__), "poi_export.txt")
+    try:
+        with open(export_file, "w", encoding="utf8") as f:
+            f.write("Elite Dangerous POI Export\n")
+            f.write("=" * 50 + "\n\n")
+            for poi in get_all_pois_flat(ALL_POIS):
+                f.write(f"Body: {poi.get('body', 'Unknown')}\n")
+                f.write(f"Latitude: {poi.get('lat', 0):.6f}\n")
+                f.write(f"Longitude: {poi.get('lon', 0):.6f}\n")
+                f.write(f"Description: {poi.get('description', '')}\n")
+                f.write(f"Active: {poi.get('active', True)}\n")
+                f.write("-" * 50 + "\n")
+        print(f"POIs exported to {export_file}")
+        # Show success message
+        try:
+            import tkinter.messagebox as mb
+            mb.showinfo("Export Complete", f"POIs exported to:\n{export_file}")
+        except Exception:
+            pass
+    except Exception as ex:
+        print(f"Error exporting POIs: {ex}")
+
+def show_about_dialog():
+    """Show about dialog."""
+    try:
+        import tkinter.messagebox as mb
+        mb.showinfo(
+            "About EDMC-PlanetPOI",
+            "EDMC-PlanetPOI\n\n"
+            "Save and navigate to Points of Interest on planetary surfaces.\n\n"
+            "Version: 1.0\n"
+            "https://github.com/yourusername/EDMC-PlanetPOI"
+        )
+    except Exception as ex:
+        print(f"Error showing about dialog: {ex}")
+
+def show_add_folder_dialog(frame, parent_children):
+    """Show dialog to add new folder."""
+    popup = tk.Toplevel()
+    popup.title(plugin_tl("Add Folder"))
+    popup.geometry(scale_geometry(400, 150))
+    
+    tk.Label(popup, text=plugin_tl("Folder name:")).pack(pady=10)
+    
+    name_var = tk.StringVar()
+    entry = tk.Entry(popup, textvariable=name_var, width=40)
+    entry.pack(pady=10, padx=20)
+    entry.focus()
+    
+    def save_and_close(event=None):
+        folder_name = name_var.get().strip()
+        if folder_name:
+            create_folder(parent_children, folder_name)
+            redraw_plugin_app()
+            popup.destroy()
+    
+    # Bind Enter key to submit
+    entry.bind("<Return>", save_and_close)
+    popup.bind("<Return>", save_and_close)
+    
+    tk.Button(popup, text=plugin_tl("Add"), command=save_and_close).pack(pady=10)
+    
+    try:
+        theme.update(popup)
+    except Exception:
+        pass
+
+def show_move_dialog(frame, item, item_type):
+    """Show dialog to move POI or folder to different parent."""
+    popup = tk.Toplevel()
+    popup.title(plugin_tl(f"Move {item_type}"))
+    popup.geometry(scale_geometry(500, 450))
+    
+    # Label at top
+    tk.Label(popup, text=plugin_tl("Select destination folder:")).pack(pady=(10, 5), padx=10)
+    
+    # Create listbox with all folders - use pack with explicit height
+    listbox_frame = tk.Frame(popup)
+    listbox_frame.pack(pady=5, padx=10, fill=tk.BOTH, expand=True)
+    
+    scrollbar = tk.Scrollbar(listbox_frame)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    
+    listbox = tk.Listbox(listbox_frame, width=50, yscrollcommand=scrollbar.set)
+    listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    scrollbar.config(command=listbox.yview)
+    
+    # Add root level option
+    folder_map = {0: ALL_POIS}  # Map index to folder's children list
+    listbox.insert(tk.END, "(Root level)")
+    
+    # Recursively add folders
+    def add_folders(items, indent=0):
+        for it in items:
+            if it.get("type") == "folder" and it is not item:  # Don't show item itself
+                idx = listbox.size()
+                folder_map[idx] = it.get("children", [])
+                prefix = "  " * indent + "📁 "
+                listbox.insert(tk.END, f"{prefix}{it.get('name', 'Unnamed')}")
+                add_folders(it.get("children", []), indent + 1)
+    
+    add_folders(ALL_POIS)
+    
+    def move_and_close():
+        selection = listbox.curselection()
+        if selection:
+            idx = selection[0]
+            target_children = folder_map.get(idx, ALL_POIS)
+            if move_item(ALL_POIS, item, target_children):
+                redraw_plugin_app()
+                popup.destroy()
+    
+    # Button at bottom with proper frame
+    button_frame = tk.Frame(popup)
+    button_frame.pack(side=tk.BOTTOM, pady=10, padx=10)
+    tk.Button(button_frame, text=plugin_tl("Move"), command=move_and_close, width=15).pack()
+    
+    try:
+        theme.update(popup)
+    except Exception:
+        pass
+
+def count_folder_contents(folder):
+    """Count total subfolders and POIs in a folder recursively."""
+    subfolder_count = 0
+    poi_count = 0
+    
+    def count_recursive(children):
+        nonlocal subfolder_count, poi_count
+        for item in children:
+            if item.get("type") == "folder":
+                subfolder_count += 1
+                count_recursive(item.get("children", []))
+            elif item.get("type") == "poi":
+                poi_count += 1
+    
+    count_recursive(folder.get("children", []))
+    return subfolder_count, poi_count
+
+def confirm_delete_item(frame, item, item_type):
+    """Confirm and delete item."""
+    try:
+        import tkinter.messagebox as mb
+        item_name = item.get("description", "") if item_type == "poi" else item.get("name", "")
+        
+        # Build confirmation message
+        if item_type == "folder":
+            subfolder_count, poi_count = count_folder_contents(item)
+            if subfolder_count > 0 or poi_count > 0:
+                message = plugin_tl(f"Are you sure you want to delete this folder?\n\n{item_name}\n\n")
+                message += plugin_tl("This will also delete:\n")
+                if subfolder_count > 0:
+                    message += plugin_tl(f"• {subfolder_count} subfolder(s)\n")
+                if poi_count > 0:
+                    message += plugin_tl(f"• {poi_count} POI(s)")
+            else:
+                message = plugin_tl(f"Are you sure you want to delete this {item_type}?\n\n{item_name}")
+        else:
+            message = plugin_tl(f"Are you sure you want to delete this {item_type}?\n\n{item_name}")
+        
+        if mb.askyesno(
+            plugin_tl(f"Delete {item_type}"),
+            message
+        ):
+            if delete_item(ALL_POIS, item):
+                redraw_plugin_app()
+    except Exception as ex:
+        print(f"Error deleting item: {ex}")
+
 def build_plugin_content(frame):
     """Build/rebuild the content inside the persistent plugin frame."""
     # Liten font för POI-listan
@@ -424,7 +977,7 @@ def build_plugin_content(frame):
     if not current_body:
         matching_system_pois = []
         if CURRENT_SYSTEM:
-            matching_system_pois = [poi for poi in ALL_POIS if poi.get("body", "").startswith(CURRENT_SYSTEM)]
+            matching_system_pois = [poi for poi in get_all_pois_flat(ALL_POIS) if poi.get("system", "") == CURRENT_SYSTEM]
         
         if matching_system_pois:
             header_frame = tk.Frame(frame)
@@ -434,10 +987,9 @@ def build_plugin_content(frame):
             system_label = tk.Label(header_frame, text=plugin_tl("PPOI: Poi's in {system}").format(system=CURRENT_SYSTEM))
             system_label.grid(row=0, column=0, sticky="w")
             theme.update(system_label)
-            tk.Button(header_frame, text="➕", command=lambda: show_add_poi_dialog(frame, CURRENT_SYSTEM), 
-                     width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e", padx=(0, 2))
-            tk.Button(header_frame, text="🔧", command=lambda: show_config_dialog(frame), 
-                     width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=2, sticky="e")
+            menu_btn = tk.Button(header_frame, text="☰", width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat")
+            menu_btn.config(command=lambda b=menu_btn: show_menu_dropdown(frame, b, CURRENT_SYSTEM))
+            menu_btn.grid(row=0, column=1, sticky="e")
             theme.update(header_frame)
             row += 1
             for idx, poi in enumerate(matching_system_pois):
@@ -450,7 +1002,11 @@ def build_plugin_content(frame):
                     else:
                         desc = "(No description)"
                 
-                poi_desc = poi.get("body", "")[len(CURRENT_SYSTEM) +1 :] + " - " + desc
+                body_part = poi.get("body", "")
+                if body_part:
+                    poi_desc = body_part + " - " + desc
+                else:
+                    poi_desc = desc
                 poi_label = tk.Label(
                     frame,
                     text=poi_desc,
@@ -467,15 +1023,14 @@ def build_plugin_content(frame):
             no_system_label = tk.Label(header_frame, text=plugin_tl("PPOI: No poi's in system"))
             no_system_label.grid(row=0, column=0, sticky="w")
             theme.update(no_system_label)
-            tk.Button(header_frame, text="➕", command=lambda: show_add_poi_dialog(frame, CURRENT_SYSTEM), 
-                     width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e", padx=(0, 2))
-            tk.Button(header_frame, text="🔧", command=lambda: show_config_dialog(frame), 
-                     width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=2, sticky="e")
+            menu_btn = tk.Button(header_frame, text="☰", width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat")
+            menu_btn.config(command=lambda b=menu_btn: show_menu_dropdown(frame, b, CURRENT_SYSTEM))
+            menu_btn.grid(row=0, column=1, sticky="e")
             theme.update(header_frame)
         
         return
 
-    matching_pois = [poi for poi in ALL_POIS if poi.get("body") == current_body]
+    matching_pois = [poi for poi in get_all_pois_flat(ALL_POIS) if poi.get("system") == current_body]
     print(f"PPOI: build_plugin_content - current_body={current_body}, found {len(matching_pois)} POIs")
 
     # Header with add button
@@ -491,10 +1046,9 @@ def build_plugin_content(frame):
     body_label.grid(row=0, column=0, sticky="w")
     theme.update(body_label)
     
-    tk.Button(header_frame, text="➕", command=lambda: show_add_poi_dialog(frame, current_body), 
-             width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=1, sticky="e", padx=(0, 2))
-    tk.Button(header_frame, text="🔧", command=lambda: show_config_dialog(frame), 
-             width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat").grid(row=0, column=2, sticky="e")
+    menu_btn = tk.Button(header_frame, text="☰", width=3, height=1, borderwidth=0, highlightthickness=0, relief="flat")
+    menu_btn.config(command=lambda b=menu_btn: show_menu_dropdown(frame, b, current_body))
+    menu_btn.grid(row=0, column=1, sticky="e")
     theme.update(header_frame)
     row += 1
 
@@ -611,7 +1165,7 @@ def build_plugin_ui(frame):
     # Headers on same row
     nb.Label(frame, text=plugin_tl("Calculate distance with altitude")).grid(row=row, column=0, columnspan=2,sticky="w", padx=(0, 8))
     nb.Label(frame, text=plugin_tl("Max overlay rows")).grid(row=row, column=2, sticky="w", padx=(0, 8))
-    nb.Label(frame, text=plugin_tl("Overlay left margin (pixels)")).grid(row=row, column=3,columnspan=3, sticky="w")
+    nb.Label(frame, text=plugin_tl("Overlay left margin (pixels)")).grid(row=row, column=3, sticky="w")
     row += 1
 
     # Widgets on same row
@@ -620,8 +1174,20 @@ def build_plugin_ui(frame):
     rows_entry = nb.EntryMenu(frame, textvariable=ROWS_VAR, width=4)
     rows_entry.grid(row=row, column=2, sticky="w", padx=(0, 8))
     left_entry = nb.EntryMenu(frame, textvariable=LEFT_VAR, width=6)
-    left_entry.grid(row=row, column=3,columnspan=3, sticky="w")
+    left_entry.grid(row=row, column=3, sticky="w", padx=(0, 8))
+    export_btn = nb.Button(frame, text=plugin_tl("Export POIs"), command=lambda: export_pois_to_file(frame), width=12)
+    export_btn.grid(row=row, column=4, sticky="w", padx=(0, 4))
+    import_btn = nb.Button(frame, text=plugin_tl("Import POIs"), command=lambda: import_pois_from_file(frame), width=12)
+    import_btn.grid(row=row, column=5, sticky="w", padx=(0, 4))
     row += 1
+    
+    # Configure column widths to prevent text clipping
+    frame.grid_columnconfigure(0, weight=0)
+    frame.grid_columnconfigure(1, weight=0)
+    frame.grid_columnconfigure(2, weight=0)
+    frame.grid_columnconfigure(3, weight=0)
+    frame.grid_columnconfigure(4, weight=0, minsize=100)
+    frame.grid_columnconfigure(5, weight=0, minsize=100)
 
     sep = ttk.Separator(frame, orient='horizontal')
     sep.grid(row=row, column=0, columnspan=8, sticky="ew", pady=8)
@@ -658,7 +1224,9 @@ def build_plugin_ui(frame):
     table_row += 1
 
     POI_VARS = []
-    for idx, poi in enumerate(ALL_POIS):
+    # Sort POIs by system name and body name
+    all_pois_sorted = sorted(get_all_pois_flat(ALL_POIS), key=lambda p: (p.get("system", "").lower(), p.get("body", "").lower()))
+    for idx, poi in enumerate(all_pois_sorted):
         active_var = tk.BooleanVar(value=poi.get("active", True))
         cb = nb.Checkbutton(table_frame, variable=active_var, width=2)
         try:
@@ -669,16 +1237,17 @@ def build_plugin_ui(frame):
         POI_VARS.append(active_var)
 
         # Copy system name button (using Label for minimal space)
-        def copy_system(body_name):
-            system, _ = split_system_and_body(body_name)
+        def copy_system(system_name):
             table_frame.clipboard_clear()
-            table_frame.clipboard_append(system)
+            table_frame.clipboard_append(system_name)
         
         copy_label = nb.Label(table_frame, text="📋", cursor="hand2")
         copy_label.grid(row=table_row, column=1, sticky="e", padx=(0, 2))
-        copy_label.bind("<Button-1>", lambda e, b=poi.get("body", ""): copy_system(b))
-
-        nb.Label(table_frame, text=poi.get("body", ""), anchor="w").grid(row=table_row, column=2, padx=2, pady=2, sticky="w")
+        copy_label.bind("<Button-1>", lambda e, s=poi.get("system", ""): copy_system(s))
+        
+        # Show full body name (system + body) in table
+        full_body_display = get_full_body_name(poi)
+        nb.Label(table_frame, text=full_body_display, anchor="w").grid(row=table_row, column=2, padx=2, pady=2, sticky="w")
         nb.Label(table_frame, text=poi.get("lat", ""), anchor="w").grid(row=table_row, column=3, padx=2, pady=2, sticky="w")
         nb.Label(table_frame, text=poi.get("lon", ""), anchor="w").grid(row=table_row, column=4, padx=2, pady=2, sticky="w")
 
@@ -686,22 +1255,22 @@ def build_plugin_ui(frame):
         desc_entry = nb.EntryMenu(table_frame, textvariable=desc_var, width=28)
         desc_entry.grid(row=table_row, column=5, sticky="w", padx=(2,2))
 
-        delbtn = nb.Button(table_frame, text=plugin_tl("Delete"), command=lambda i=idx: remove_poi(i, frame), width=7)
+        delbtn = nb.Button(table_frame, text=plugin_tl("Delete"), command=lambda p=poi: remove_poi_obj(p, frame), width=7)
         delbtn.grid(row=table_row, column=6, sticky="w", padx=(2,2))
 
         savebtn = nb.Button(table_frame, text=plugin_tl("Save"), state='disabled', width=7)
         savebtn.grid(row=table_row, column=7, sticky="w", padx=(2,2))
 
-        sharebtn = nb.Button(table_frame, text=plugin_tl("Share"), command=lambda i=idx: show_share_popup(frame, i), width=7)
+        sharebtn = nb.Button(table_frame, text=plugin_tl("Share"), command=lambda p=poi: show_share_popup(frame, p), width=7)
         sharebtn.grid(row=table_row, column=8, sticky="w", padx=(2,2))
 
-        def on_desc_change(*args, i=idx, v=desc_var, btn=savebtn):
+        def on_desc_change(*args, p=poi, v=desc_var, btn=savebtn):
             current = v.get()
-            original = ALL_POIS[i].get("description", "")
+            original = p.get("description", "")
             btn.config(state=('normal' if current != original else 'disabled'))
 
-        desc_var.trace_add('write', lambda *args, i=idx, v=desc_var, btn=savebtn: on_desc_change(i=i, v=v, btn=btn))
-        savebtn.config(command=lambda i=idx, v=desc_var, btn=savebtn: save_desc(i, v, frame, btn))
+        desc_var.trace_add('write', lambda *args, p=poi, v=desc_var, btn=savebtn: on_desc_change(p=p, v=v, btn=btn))
+        savebtn.config(command=lambda p=poi, v=desc_var, btn=savebtn: save_desc_obj(p, v, frame, btn))
         table_row += 1
 
     # ------ Grid column configuration for clean layout (only for table_frame) ------
@@ -811,7 +1380,20 @@ def parse_share_url(url):
         # Validate required fields
         if poi_data.get('v') != 1:
             return None
-        if 'body' not in poi_data or 'lat' not in poi_data or 'lon' not in poi_data:
+        
+        # Support both old format (body) and new format (system + body)
+        if 'system' in poi_data:
+            # New format
+            if 'lat' not in poi_data or 'lon' not in poi_data:
+                return None
+        elif 'body' in poi_data:
+            # Old format - migrate to new format
+            full_body = poi_data.get('body', '')
+            system_name, body_part = split_system_and_body(full_body)
+            poi_data['system'] = system_name
+            poi_data['body'] = body_part
+        else:
+            return None
             return None
         
         return poi_data
@@ -827,6 +1409,7 @@ def generate_share_url(poi):
     # Create POI object matching the format expected by index.html
     poi_data = {
         "v": 1,
+        "system": poi.get("system", ""),
         "body": poi.get("body", ""),
         "lat": poi.get("lat", 0),
         "lon": poi.get("lon", 0),
@@ -842,11 +1425,10 @@ def generate_share_url(poi):
     
     return f"https://bbbkada.github.io/EDMC-PlanetPOI/share/#{base64_str}"
 
-def show_share_popup(parent, idx):
+def show_share_popup(parent, poi):
     """
     Show popup dialog with shareable URL and copy button
     """
-    poi = ALL_POIS[idx]
     share_url = generate_share_url(poi)
     
     # Create popup window
@@ -896,13 +1478,14 @@ def redraw_prefs(frame):
         widget.destroy()
     build_plugin_ui(frame)
 
-def remove_poi(idx, frame):
-    ALL_POIS.pop(idx)
-    save_pois()
-    redraw_prefs(frame)
+def remove_poi_obj(poi, frame):
+    """Remove POI by object reference."""
+    if delete_item(ALL_POIS, poi):
+        redraw_prefs(frame)
 
-def save_desc(idx, desc_var, frame, savebtn):
-    ALL_POIS[idx]["description"] = desc_var.get()
+def save_desc_obj(poi, desc_var, frame, savebtn):
+    """Save description by POI object reference."""
+    poi["description"] = desc_var.get()
     save_pois()
     savebtn.config(state='disabled')
     try:
@@ -919,11 +1502,16 @@ def add_manual_poi(body_entry, lat_entry, lon_entry, desc_entry, frame):
         frame.info_label.config(text=plugin_tl("Invalid input!"))
         return
     desc = desc_entry.get().strip()
+    # Split body into system and body parts
+    system_name, body_part = split_system_and_body(body)
     ALL_POIS.append({
-        "body": body,
+        "type": "poi",
+        "system": system_name,
+        "body": body_part,
         "lat": lat,
         "lon": lon,
         "description": desc,
+        "notes": "",
         "active": True
     })
     save_pois()
@@ -931,11 +1519,15 @@ def add_manual_poi(body_entry, lat_entry, lon_entry, desc_entry, frame):
 
 def save_current_poi(frame):
     if last_lat is not None and last_lon is not None and last_body:
+        # last_body is just system name now
         ALL_POIS.append({
-            "body": last_body,
+            "type": "poi",
+            "system": last_body,
+            "body": "",
             "lat": last_lat,
             "lon": last_lon,
             "description": "",
+            "notes": "",
             "active": True
         })
         save_pois()
@@ -948,8 +1540,11 @@ def save_current_poi(frame):
 
 def prefs_changed(cmdr, is_beta):
     global ALT_VAR, ROWS_VAR, LEFT_VAR
+    # Update active status for all flat POIs
+    flat_pois = get_all_pois_flat(ALL_POIS)
     for i, var in enumerate(POI_VARS):
-        ALL_POIS[i]["active"] = var.get()
+        if i < len(flat_pois):
+            flat_pois[i]["active"] = var.get()
     config.set(ALT_KEY, 1 if ALT_VAR.get() else 0)
     config.set(ROWS_KEY, ROWS_VAR.get())
     config.set(LEFT_KEY, LEFT_VAR.get())
@@ -978,7 +1573,7 @@ def dashboard_entry(cmdr, is_beta, entry):
         redraw_plugin_app()
         return
 
-    visible_pois = [poi for poi in ALL_POIS if poi.get("active", True) and poi.get("body") == bodyname]
+    visible_pois = [poi for poi in get_all_pois_flat(ALL_POIS) if poi.get("active", True) and poi.get("system") == bodyname]
 
     poi_texts = []
     for poi in visible_pois:

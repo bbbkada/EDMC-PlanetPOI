@@ -1,107 +1,118 @@
 [
   {
-    "body": "HIP 36601 C 3 b",
-    "lat": -62.5,
-    "lon": -127.2,
-    "active": true,
-    "description": "Crystalline shards Tellerium"
-  },
-  {
-    "body": "Synuefe AA-P c22-7 5 c",
-    "lat": 28.97,
-    "lon": 133.48,
-    "description": "Brain trees Polonium",
-    "active": true
-  },
-  {
-    "body": "HIP 36601 C 1 a",
-    "lat": -68.2,
-    "lon": 137.2,
-    "description": "Crystalline shards Polonium",
-    "active": true
-  },
-  {
-    "body": "HIP 36601 C 1 d",
-    "lat": -49.2,
-    "lon": 127.1,
-    "description": "Crystalline shards Ruthenium",
-    "active": true
-  },
-  {
-    "body": "HIP 36601 C 5 a",
-    "lat": 3.55,
-    "lon": 111.54,
-    "description": "Crystalline shards Technetium",
-    "active": true
-  },
-  {
-    "body": "Outotz LS-K d8-3 B 5 a",
-    "lat": -1.9216,
-    "lon": -145.7013,
-    "description": "Crystalline shards Yttrium",
-    "active": true
-  },
-  {
-    "body": "Outotz LS-K d8-3 B 5 c",
-    "lat": -62.4905,
-    "lon": 80.2426,
-    "description": "Crystalline shards Antimony",
-    "active": true
-  },
-  {
-    "body": "HR 3230 3 a a",
-    "lat": 31.7794,
-    "lon": -118.626,
-    "description": "Brain trees Selenium",
-    "active": true
-  },
-  {
-    "body": "HR 3230 3 a a",
-    "lat": 32.247139,
-    "lon": -118.592766,
-    "description": "Selenium 2",
-    "active": true
-  },
-  {
-    "body": "Orrere 2 b",
+    "type": "poi",
+    "body": "2 b",
     "lat": 43.8214,
     "lon": -173.98,
     "description": "Crashed Anaconda",
-    "active": true
+    "active": true,
+    "system": "Orrere",
+    "notes": "Tellerium and lots of other high grade raw materials"
   },
   {
-    "body": "HIP 12248 5 a",
-    "lat": 10.53,
-    "lon": -45.13,
-    "description": "Mystery POI",
-    "active": true
+    "type": "folder",
+    "name": "Raw materials",
+    "children": [
+      {
+        "type": "folder",
+        "name": "HIP 36601",
+        "children": [
+          {
+            "type": "poi",
+            "body": "C 1 d",
+            "lat": -49.2,
+            "lon": 127.1,
+            "description": "Crystalline shards Ruthenium",
+            "active": true,
+            "system": "HIP 36601"
+          },
+          {
+            "type": "poi",
+            "body": "C 5 a",
+            "lat": 3.55,
+            "lon": 111.54,
+            "description": "Crystalline shards Technetium",
+            "active": true,
+            "system": "HIP 36601"
+          },
+          {
+            "type": "poi",
+            "body": "C 1 a",
+            "lat": -68.2,
+            "lon": 137.2,
+            "description": "Crystalline shards Polonium",
+            "active": true,
+            "system": "HIP 36601"
+          },
+          {
+            "type": "poi",
+            "body": "C 3 b",
+            "lat": -62.5,
+            "lon": -127.2,
+            "active": true,
+            "description": "Crystalline shards Tellerium",
+            "system": "HIP 36601"
+          }
+        ]
+      },
+      {
+        "type": "folder",
+        "name": "Outotz LS-K d8-3",
+        "children": [
+          {
+            "type": "poi",
+            "body": "B 5 a",
+            "lat": -1.9216,
+            "lon": -145.7013,
+            "description": "Crystalline shards Yttrium",
+            "active": true,
+            "system": "Outotz LS-K d8-3"
+          },
+          {
+            "type": "poi",
+            "body": "B 5 c",
+            "lat": -62.4905,
+            "lon": 80.2426,
+            "description": "Crystalline shards Antimony",
+            "active": true,
+            "system": "Outotz LS-K d8-3"
+          }
+        ]
+      },
+      {
+        "type": "folder",
+        "name": "HR 3230",
+        "children": [
+          {
+            "type": "poi",
+            "body": "3 a a",
+            "lat": 31.7794,
+            "lon": -118.626,
+            "description": "Brain trees Selenium",
+            "active": true,
+            "system": "HR 3230"
+          },
+          {
+            "type": "poi",
+            "body": "3 a a",
+            "lat": 32.247139,
+            "lon": -118.592766,
+            "description": "Selenium 2",
+            "active": true,
+            "system": "HR 3230"
+          }
+        ]
+      }
+    ]
   },
   {
-    "body": "HIP 100000",
+    "type": "poi",
+    "system": "HIP 12099",
+    "body": "1 b",
     "lat": "",
     "lon": "",
-    "description": "Coolt system",
-    "active": true
-  },
-  {
-    "body": "HIP 36601 C 1 a",
-    "lat": -68.2,
-    "lon": 137.2,
-    "description": "Crystalline shards Polonium",
-    "active": true
-  },
-  {
-    "body": "HIP 36608 C 1 a",
-    "lat": -68.2,
-    "lon": 137.2,
-    "description": "Crystalline shards Polonium",
-    "active": true
-  },
-  {
-    "body": "Wredguia PI-B d13-35",
-    "lat": "",
-    "lon": "",
-    "description": "Home",
+    "description": "Jameson",
+    "notes": "Stuff and stuff",
     "active": true
   }
 ]

@@ -78,6 +78,7 @@
 <div id="poiCard" class="card" style="display:none">
   <h2>POI details</h2>
   <div class="grid">
+    <div class="label">System</div><div id="system"></div>
     <div class="label">Body</div><div id="body"></div>
     <div class="label">Latitude</div><div id="lat"></div>
     <div class="label">Longitude</div><div id="lon"></div>
@@ -155,9 +156,19 @@
   function validatePoi(obj) {
     if (!obj || typeof obj !== "object") return "Invalid POI data.";
     if (obj.v !== 1) return "Unsupported POI version.";
-    if (typeof obj.body !== "string") return "Missing body.";
-    if (typeof obj.lat !== "number" || obj.lat < -90 || obj.lat > 90) return "Invalid latitude.";
-    if (typeof obj.lon !== "number" || obj.lon < -180 || obj.lon > 180) return "Invalid longitude.";
+    
+    // Support both old format (body) and new format (system + body)
+    if (obj.system && typeof obj.system !== "string") return "Invalid system.";
+    if (!obj.system && !obj.body) return "Missing system or body.";
+    
+    // Latitude and longitude are optional for system-only POIs
+    if (obj.lat !== undefined && obj.lat !== "" && (typeof obj.lat !== "number" || obj.lat < -90 || obj.lat > 90)) {
+      return "Invalid latitude.";
+    }
+    if (obj.lon !== undefined && obj.lon !== "" && (typeof obj.lon !== "number" || obj.lon < -180 || obj.lon > 180)) {
+      return "Invalid longitude.";
+    }
+    
     return null;
   }
 
@@ -175,9 +186,21 @@
       return;
     }
 
-    document.getElementById("body").textContent = json.body;
-    document.getElementById("lat").textContent = json.lat.toFixed(6);
-    document.getElementById("lon").textContent = json.lon.toFixed(6);
+    // Support both old and new format
+    let systemName = json.system || "";
+    let bodyName = json.body || "";
+    
+    // If old format (only body field), try to split
+    if (!systemName && bodyName) {
+      // Assume full body name and display as-is
+      systemName = bodyName;
+      bodyName = "";
+    }
+    
+    document.getElementById("system").textContent = systemName;
+    document.getElementById("body").textContent = bodyName || "(System only)";
+    document.getElementById("lat").textContent = json.lat !== "" && json.lat !== undefined ? json.lat.toFixed(6) : "(N/A)";
+    document.getElementById("lon").textContent = json.lon !== "" && json.lon !== undefined ? json.lon.toFixed(6) : "(N/A)";
     document.getElementById("desc").textContent = json.description || "";
     document.getElementById("active").textContent =
       (json.active === false) ? "false" : "true";
