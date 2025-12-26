@@ -264,10 +264,13 @@ def show_config_dialog(parent_frame):
     prefs_frame = plugin_prefs(container_frame, None, False)
     prefs_frame.pack(fill=tk.BOTH, expand=True)
 
-def show_add_poi_dialog(parent_frame, prefill_system=None, edit_poi=None):
+def show_add_poi_dialog(parent_frame, prefill_system=None, edit_poi=None, parent_children=None):
     """Show dialog to add a new POI or edit existing POI"""
     dialog = tk.Toplevel(parent_frame)
     is_edit_mode = edit_poi is not None
+    # If no parent specified, use root
+    if parent_children is None:
+        parent_children = ALL_POIS
     dialog.title("Edit POI" if is_edit_mode else "Add New POI")
     dialog.geometry(scale_geometry(550, 650))
     dialog.transient(parent_frame)
@@ -311,15 +314,22 @@ def show_add_poi_dialog(parent_frame, prefill_system=None, edit_poi=None):
     else:
         # If we have a current body position, extract system and body parts
         if last_body:
-            # last_body is system name for system POIs
-            auto_system = last_body
+            # Split last_body into system and body parts
+            system_part, body_part = split_system_and_body(last_body)
+            auto_system = system_part
+            auto_body = body_part
             if last_lat is not None and last_lon is not None:
                 auto_lat = str(last_lat)
                 auto_lon = str(last_lon)
         
         # If prefill_system provided (from button click or folder), use it
+        # But it might also contain a full body name, so split it first
         if prefill_system:
-            auto_system = prefill_system
+            system_part, body_part = split_system_and_body(prefill_system)
+            auto_system = system_part if system_part else prefill_system
+            # Only override body if we didn't already have one from last_body
+            if body_part and not auto_body:
+                auto_body = body_part
     
     # Configure dialog grid
     dialog.grid_columnconfigure(1, weight=1)
@@ -507,7 +517,7 @@ def show_add_poi_dialog(parent_frame, prefill_system=None, edit_poi=None):
                 "notes": notes,
                 "active": True
             }
-            ALL_POIS.append(new_poi)
+            parent_children.append(new_poi)
             print(f"PPOI: Added new POI: system={system}, body={formatted_body}")
             print(f"PPOI: Total items now: {len(ALL_POIS)}")
         
@@ -522,11 +532,8 @@ def show_add_poi_dialog(parent_frame, prefill_system=None, edit_poi=None):
     tk.Button(button_frame, text="Cancel", command=dialog.destroy, width=10).pack(side="left", padx=(0, 5))
     tk.Button(button_frame, text="Save", command=save_and_close, width=10).pack(side="left")
     
-    # Focus on body name if system is pre-filled, otherwise focus on system
-    if auto_system:
-        body_entry.focus()
-    else:
-        system_entry.focus()
+    # Focus on description field by default (system and body are usually pre-filled)
+    desc_entry.focus()
 
 def redraw_plugin_app():
     global PLUGIN_FRAME, PLUGIN_PARENT
@@ -546,7 +553,12 @@ def redraw_plugin_app():
             print("PlanetPOI: redraw_plugin_app failed:", ex)
 
 def journal_entry(cmdr, is_beta, system, station, entry, state):
-    global CURRENT_SYSTEM
+    global CURRENT_SYSTEM, last_body
+    
+    # Clear overlay when jumping to a new system or entering supercruise
+    if entry['event'] in ['FSDJump', 'SupercruiseEntry']:
+        last_body = None
+        overlay.clear_all_poi_rows()
     
     if (entry['event'] in ['FSDJump','StartUp'] and entry.get('StarSystem')):
         print(f"PPOI: Arriving at {entry['StarSystem']}")
@@ -677,7 +689,7 @@ def show_menu_dropdown(frame, button, body_name):
                 # Add folder operations
                 folder_submenu.add_command(
                     label=plugin_tl("Add new POI"),
-                    command=lambda i=item: show_add_poi_dialog(frame, body_name)
+                    command=lambda i=item: show_add_poi_dialog(frame, body_name, parent_children=i.get("children", []))
                 )
                 folder_submenu.add_command(
                     label=plugin_tl("Add folder"),
@@ -712,20 +724,6 @@ def show_menu_dropdown(frame, button, body_name):
                 desc = item.get("description", "").strip()
                 if not desc:
                     continue  # Skip POIs without description
-                
-                # Check if POI matches current location
-                poi_system = item.get("system", "")
-                poi_body = item.get("body", "")
-                show_poi = False
-                if last_body and poi_system == last_body:
-                    show_poi = True
-                elif CURRENT_SYSTEM and poi_system == CURRENT_SYSTEM:
-                    show_poi = True
-                elif not last_body and not CURRENT_SYSTEM:
-                    show_poi = True
-                
-                if not show_poi:
-                    continue
                 
                 # Create submenu for POI
                 poi_submenu = tk.Menu(parent_menu, tearoff=0)
@@ -1030,7 +1028,7 @@ def build_plugin_content(frame):
         
         return
 
-    matching_pois = [poi for poi in get_all_pois_flat(ALL_POIS) if poi.get("system") == current_body]
+    matching_pois = [poi for poi in get_all_pois_flat(ALL_POIS) if get_full_body_name(poi) == current_body]
     print(f"PPOI: build_plugin_content - current_body={current_body}, found {len(matching_pois)} POIs")
 
     # Header with add button
@@ -1288,40 +1286,19 @@ def build_plugin_ui(frame):
 def split_system_and_body(full_body_name):
     """
     Split a full body name into system and body parts.
-    Body designation always starts with a digit (planet number).
-    Examples:
-    - "Orrere 2 b" -> ("Orrere", "2 b")
-    - "Synuefe AA-P c22-7 5 c" -> ("Synuefe AA-P c22-7", "5 c")
-    - "HIP 36601 C 3 a" -> ("HIP 36601", "C 3 a")
-    """
-    if not full_body_name:
-        return "", ""
-    
-    # Find the last space followed by a digit or uppercase letter (body designation start)
-    # Body can start with: digit (planet around primary star) or uppercase letter (secondary star)
-    for i in range(len(full_body_name) - 1, 0, -1):
-        if full_body_name[i-1] == ' ':
-            char_after_space = full_body_name[i]
-            # Body designation starts with digit OR uppercase letter
-            if char_after_space.isdigit() or (char_after_space.isupper() and char_after_space.isalpha()):
-                system_name = full_body_name[:i-1]
-                body_part = full_body_name[i:]
-                return system_name, body_part
-    
-    # If no valid split found, return full name as system
-    return full_body_name, ""
-
-def split_system_and_body(full_body_name):
-    """
-    Split a full body name into system and body parts.
     Body designation starts with either:
     - A single uppercase letter followed by space and digit (secondary star): "B 5 c", "C 3 a"
-    - A digit (planet around primary star): "2 b", "5 c"
+    - A single digit or digit sequence for planet around primary star: "1", "2 b", "5 c", "10"
+    
+    The key insight: Elite system names contain hyphens and can end with numbers like "d13-35",
+    but body designations are ALWAYS standalone segments separated by spaces.
+    System names never end with a single standalone digit/letter - they end with number-dash-number patterns.
     
     Examples:
     - "Orrere 2 b" -> ("Orrere", "2 b")
     - "Synuefe AA-P c22-7 5 c" -> ("Synuefe AA-P c22-7", "5 c")
     - "HIP 36601 C 3 a" -> ("HIP 36601", "C 3 a")
+    - "Wredguia PI-B d13-35 1" -> ("Wredguia PI-B d13-35", "1")
     - "Outotz LS-K d8-3 B 5 c" -> ("Outotz LS-K d8-3", "B 5 c")
     """
     if not full_body_name:
@@ -1341,13 +1318,28 @@ def split_system_and_body(full_body_name):
                         body_part = full_body_name[i:]
                         return system_name, body_part
     
-    # If no secondary star found, look for space followed by digit (primary star planet)
-    for i in range(len(full_body_name) - 1, 0, -1):
-        if full_body_name[i-1] == ' ':
-            char_after_space = full_body_name[i]
-            if char_after_space.isdigit():
-                system_name = full_body_name[:i-1]
-                body_part = full_body_name[i:]
+    # If no secondary star found, look for the LAST space followed by digit(s)
+    # This handles primary star planets like "1", "2 b", "10 a"
+    # We look from the end to find the rightmost space + digit combo
+    parts = full_body_name.split(' ')
+    if len(parts) >= 2:
+        # Check if the last part or last two parts form a body designation
+        last_part = parts[-1]
+        
+        # Check if last part starts with a digit (body designation)
+        if last_part and last_part[0].isdigit():
+            # This is the body designation
+            body_part = ' '.join(parts[len(parts)-1:])
+            system_name = ' '.join(parts[:len(parts)-1])
+            return system_name, body_part
+        
+        # Check if last part is a single lowercase letter (moon) and second-to-last starts with digit
+        if len(parts) >= 2 and len(last_part) == 1 and last_part.islower():
+            second_last = parts[-2]
+            if second_last and second_last[0].isdigit():
+                # "2 b" pattern
+                body_part = ' '.join(parts[len(parts)-2:])
+                system_name = ' '.join(parts[:len(parts)-2])
                 return system_name, body_part
     
     # If no valid split found, return full name as system
@@ -1519,11 +1511,12 @@ def add_manual_poi(body_entry, lat_entry, lon_entry, desc_entry, frame):
 
 def save_current_poi(frame):
     if last_lat is not None and last_lon is not None and last_body:
-        # last_body is just system name now
+        # Split last_body into system and body parts
+        system_part, body_part = split_system_and_body(last_body)
         ALL_POIS.append({
             "type": "poi",
-            "system": last_body,
-            "body": "",
+            "system": system_part,
+            "body": body_part,
             "lat": last_lat,
             "lon": last_lon,
             "description": "",
@@ -1559,21 +1552,27 @@ def dashboard_entry(cmdr, is_beta, entry):
     lat = entry.get("Latitude")
     lon = entry.get("Longitude")
     bodyname = entry.get("BodyName")
-    planet_radius = entry.get("PlanetRadius")
-    print(f"dash:{entry}")
+    planet_radius = entry.get("PlanetRadius") or 1000000  # Default radius if missing
+    
     if lat is not None and lon is not None and bodyname:
         prev_body = last_body
         last_lat, last_lon, last_body = lat, lon, bodyname
         if str(prev_body) != str(bodyname):
             redraw_plugin_app()
  
+    # Only clear overlay if we're definitely not on a body anymore
     if bodyname is None and last_body:
         last_body = None
         overlay.clear_all_poi_rows()
         redraw_plugin_app()
         return
+    
+    # If we don't have coordinates, skip update
+    if lat is None or lon is None or bodyname is None:
+        return
 
-    visible_pois = [poi for poi in get_all_pois_flat(ALL_POIS) if poi.get("active", True) and poi.get("system") == bodyname]
+    # Update overlay on EVERY dashboard update when we have coordinates
+    visible_pois = [poi for poi in get_all_pois_flat(ALL_POIS) if poi.get("active", True) and get_full_body_name(poi) == bodyname]
 
     poi_texts = []
     for poi in visible_pois:

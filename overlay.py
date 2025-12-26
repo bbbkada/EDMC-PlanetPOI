@@ -61,7 +61,7 @@ def show_poi_rows(poi_texts, color="#ff7100"):
             message_id,
             text,
             color,
-            OVERLAY_LEFT_MARGIN, y_pos, 8,
+            OVERLAY_LEFT_MARGIN, y_pos, 30,  # TTL = 30 seconds (keeps overlay visible)
             "large"
         )
 
