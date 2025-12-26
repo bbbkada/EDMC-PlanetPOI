@@ -22,4 +22,4 @@ env/
 Thumbs.db
 
 # User data - don't commit personal POI data
-poi.json
+# poi.json
