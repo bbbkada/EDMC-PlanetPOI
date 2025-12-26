@@ -57,6 +57,11 @@ On a planetary surface, see all POIs for that body. Use checkboxes to toggle ove
 
 ![Body View](images/EDMC_gui.png)
 
+### POI Menu
+Access POI management options via the menu button (☰). Edit, move, delete, share POIs or create folders:
+
+![POI Menu](images/dropmenu.png)
+
 ### In-Game Overlay
 Real-time overlay showing bearing, distance, and description for active POIs (requires EDMCOverlay):
 

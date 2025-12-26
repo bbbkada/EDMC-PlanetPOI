@@ -132,6 +132,16 @@
             "description": "Iyer Plant",
             "notes": "",
             "active": true
+          },
+          {
+            "type": "poi",
+            "system": "Wredguia PI-B d13-35",
+            "body": "",
+            "lat": "",
+            "lon": "",
+            "description": "Just the system",
+            "notes": "",
+            "active": true
           }
         ]
       }
