@@ -114,5 +114,27 @@
     "description": "Jameson",
     "notes": "Stuff and stuff",
     "active": true
+  },
+  {
+    "type": "folder",
+    "name": "Home Systems",
+    "children": [
+      {
+        "type": "folder",
+        "name": "Wredguia PI-B d13-35",
+        "children": [
+          {
+            "type": "poi",
+            "system": "Wredguia PI-B d13-35",
+            "body": "3 a",
+            "lat": -66.581482,
+            "lon": 164.924393,
+            "description": "Iyer Plant",
+            "notes": "",
+            "active": true
+          }
+        ]
+      }
+    ]
   }
 ]
