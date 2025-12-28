@@ -58,11 +58,13 @@ def show_poi_rows(poi_texts, color="#ff7100"):
         y_pos = ROW_Y_START + idx * ROW_Y_STEP
         message_id = f"poi_{idx}"
         this.overlay.send_message(
-            message_id,
-            text,
-            color,
-            OVERLAY_LEFT_MARGIN, y_pos, 30,  # TTL = 30 seconds (keeps overlay visible)
-            "large"
+            msgid=message_id,
+            text=text,
+            color=color,
+            x=OVERLAY_LEFT_MARGIN,
+            y=y_pos,
+            ttl=30,  # TTL = 30 seconds (keeps overlay visible)
+            size="large"
         )
 
     # Clear old overlays if there are fewer rows than before
@@ -70,11 +72,13 @@ def show_poi_rows(poi_texts, color="#ff7100"):
         y_pos = ROW_Y_START + idx * ROW_Y_STEP
         message_id = f"poi_{idx}"
         this.overlay.send_message(
-            message_id,
-            "",
-            "#000000",
-            OVERLAY_LEFT_MARGIN, y_pos, 8,
-            "large"
+            msgid=message_id,
+            text="",
+            color="#000000",
+            x=OVERLAY_LEFT_MARGIN,
+            y=y_pos,
+            ttl=8,  # TTL = 30 seconds (keeps overlay visible)
+            size="large"
         )
 
 def show_message(message_id, text, color="#ff7100", x=2, y=2, size=8, font_weight="normal"):
@@ -83,11 +87,13 @@ def show_message(message_id, text, color="#ff7100", x=2, y=2, size=8, font_weigh
     """
     if ensure_overlay():
         this.overlay.send_message(
-            message_id,
-            text,
-            color,
-            x, y, size,
-            font_weight
+            msgid=message_id,
+            text=text,
+            color=color,
+            x=x,
+            y=y,
+            ttl=size,  # TTL = 30 seconds (keeps overlay visible)
+            size="large"
         )
 
 def clear_all_poi_rows():
@@ -99,13 +105,15 @@ def clear_all_poi_rows():
         y_pos = ROW_Y_START + idx * ROW_Y_STEP
         message_id = f"poi_{idx}"
         if ensure_overlay():
-            this.overlay.send_message(
-                message_id,
-                "",
-                "#000000",
-                OVERLAY_LEFT_MARGIN, y_pos, 8,
-                "large"
-            )
+         this.overlay.send_message(
+            msgid=message_id,
+            text="",
+            color="#000000",
+            x=OVERLAY_LEFT_MARGIN,
+            y=y_pos,
+            ttl=8,  # TTL = 30 seconds (keeps overlay visible)
+            size="large"
+        )
 
 def ensure_overlay():
     if getattr(this, "overlay_available", False):
