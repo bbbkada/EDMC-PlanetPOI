@@ -21,11 +21,12 @@ Perfect for saving interesting locations while exploring, organizing your discov
 
 ### Configuration Settings
 Adjust overlay position, maximum visible POIs, altitude calculation options and option the show directions in EDMC gui:
+All POI's are shown flat and sortable by system or description, export/import all POI's for backup/restore, sharing etc.
 
 ![Settings](images/EDMC_Settings.png)
 
 ### Add/Edit POI Dialog
-Add new POIs with system name autocomplete. Auto-fills current system and position if in planetary orbit. Paste shared links with Ctrl+V or button.
+Add new POIs with system name autocomplete. Auto-fills current system, and position if in planetary orbit. Paste shared links with Ctrl+V or button.
 
 ![Add POI](images/Add_poi.png)
 
@@ -65,10 +66,9 @@ Real-time overlay showing bearing, distance, and description for active POIs (re
 - Collapsible folder view in the main UI
 
 ### 🔗 Share POIs
-- Generate shareable links for any POI
-- Auto-detect and paste shared links with Ctrl+V
-- Copy system names to clipboard for easy navigation setup
-- Share individual POIs or entire collections via JSON export/import
+- Generate shareable Urls for any POI, Url points to a info page at github.io, if pasted in a browser
+- Paste shared url in the add dialog to autofill it's values.
+- Share individual POIs or entire collection via JSON export/import
 
 ### ⚙️ Customizable Settings
 - Adjust maximum number of overlay rows displayed
