@@ -1,26 +1,71 @@
-"Saved POIs" = "Saved POIs";
-"Active" = "Active";
-"Body Name" = "Body Name";
-"Latitude" = "Latitude";
-"Longitude" = "Longitude";
-"Description" = "Description";
-"Delete" = "Delete";
-"Save" = "Save";
-"Share" = "Share";
-"Share POI" = "Share POI";
-"Copy this link to share the POI:" = "Copy this link to share the POI:";
-"Copy to clipboard" = "Copy to clipboard";
-"Add new POI" = "Ny POI";
-"Add" = "Add";
-"Save current position" = "Save current position";
-"POI saved!" = "POI saved!";
-"No valid planet/location to save!" = "No valid planet/location to save!";
-"Invalid input!" = "Invalid input!";
-"Description updated!" = "Description updated!";
-"Current" = "Current";
-"Calculate distance with altitude" = "Calculate distance with altitude";
-"Max overlay rows" = "Max overlay rows";
-"Overlay left margin (pixels)" = "Overlay left margin (pixels)";
-"PPOI: No POIs for this body" = "PPOI: No POIs for this body";
-"PPOI: Poi's in {system}" = "PPOI: Poi's in {system}";
-"PPOI: No poi's in system" = "PPOI: No poi's in system";
+/* Inställningar och UI-etiketter */
+"Calculate distance with altitude" = "Beräkna distans med altitud";
+"Max overlay rows" = "Max antal overlay-rader";
+"Overlay left margin (pixels)" = "Overlay vänstermarginal (pixlar)";
+"Show overlay info in GUI" = "Visa overlay-info i GUI";
+"Export POIs" = "Exportera POIs";
+"Import POIs" = "Importera POIs";
+
+/* Tabellrubriker */
+"Saved POIs" = "Sparade POIs";
+"Active" = "Aktiv";
+"Body Name" = "Body-namn";
+"Latitude" = "Latitud";
+"Longitude" = "Longitud";
+"Description" = "Beskrivning";
+"Delete" = "Ta bort";
+"Save" = "Spara";
+"Share" = "Dela";
+
+/* Huvudgränssnitt-meddelanden */
+"PPOI: No POIs for this body" = "PPOI: Inga POIs för denna body";
+"PPOI: Poi's in {system}" = "PPOI: POIs i {system}";
+"PPOI: No poi's in system" = "PPOI: Inga POIs i systemet";
+
+/* Kontextmeny-åtgärder */
+"Add new POI" = "Lägg till ny POI";
+"Add folder" = "Lägg till mapp";
+"Add root folder" = "Lägg till rotmapp";
+"Settings" = "Inställningar";
+"Move folder" = "Flytta mapp";
+"Delete folder" = "Ta bort mapp";
+"Copy systemname" = "Kopiera systemnamn";
+"Copy coordinates" = "Kopiera koordinater";
+"Copy system name" = "Kopiera systemnamn";
+"Copy body name" = "Kopiera body-namn";
+"Share link" = "Dela länk";
+"Edit" = "Redigera";
+"Move POI" = "Flytta POI";
+"Delete POI" = "Ta bort POI";
+"Activate POI" = "Aktivera POI";
+"Deactivate POI" = "Avaktivera POI";
+"Activate" = "Aktivera";
+"Deactivate" = "Avaktivera";
+"Actions" = "Åtgärder";
+"(Empty)" = "(Tom)";
+
+/* Dialoger */
+"Share POI" = "Dela POI";
+"Copy this link to share the POI:" = "Kopiera denna länk för att dela POI:n:";
+"Copy to clipboard" = "Kopiera till urklipp";
+"Add Folder" = "Lägg till mapp";
+"Folder name:" = "Mappnamn:";
+"Add" = "Lägg till";
+"Move {item_type}" = "Flytta {item_type}";
+"Select destination folder:" = "Välj målmapp:";
+"Move" = "Flytta";
+"Cancel" = "Avbryt";
+"(Root level)" = "(Rotnivå)";
+
+/* Borttagningsbekräftelser */
+"Delete {item_type}" = "Ta bort {item_type}";
+"Are you sure you want to delete this folder?\n\n{item_name}\n\n" = "Är du säker på att du vill ta bort denna mapp?\n\n{item_name}\n\n";
+"Are you sure you want to delete this {item_type}?\n\n{item_name}" = "Är du säker på att du vill ta bort denna {item_type}?\n\n{item_name}";
+"This will also delete:\n" = "Detta kommer också ta bort:\n";
+"• {subfolder_count} subfolder(s)\n" = "• {subfolder_count} undermapp(ar)\n";
+"• {poi_count} POI(s)" = "• {poi_count} POI(s)";
+
+/* Statusmeddelanden */
+"Description updated!" = "Beskrivning uppdaterad!";
+"Invalid input!" = "Ogiltig inmatning!";
+"No valid planet/location to save!" = "Ingen giltig planet/plats att spara!";

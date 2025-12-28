@@ -1,3 +1,12 @@
+/* Settings and UI labels */
+"Calculate distance with altitude" = "Calculate distance with altitude";
+"Max overlay rows" = "Max overlay rows";
+"Overlay left margin (pixels)" = "Overlay left margin (pixels)";
+"Show overlay info in GUI" = "Show overlay info in GUI";
+"Export POIs" = "Export POIs";
+"Import POIs" = "Import POIs";
+
+/* Table headers */
 "Saved POIs" = "Saved POIs";
 "Active" = "Active";
 "Body Name" = "Body Name";
@@ -7,20 +16,56 @@
 "Delete" = "Delete";
 "Save" = "Save";
 "Share" = "Share";
-"Share POI" = "Share POI";
-"Copy this link to share the POI:" = "Copy this link to share the POI:";
-"Copy to clipboard" = "Copy to clipboard";
-"Add new POI:" = "Add new POI:";
-"Add" = "Add";
-"Save current position" = "Save current position";
-"POI saved!" = "POI saved!";
-"No valid planet/location to save!" = "No valid planet/location to save!";
-"Invalid input!" = "Invalid input!";
-"Description updated!" = "Description updated!";
-"Current" = "Current";
-"Calculate distance with altitude" = "Calculate distance with altitude";
-"Max overlay rows" = "Max overlay rows";
-"Overlay left margin (pixels)" = "Overlay left margin (pixels)";
+
+/* Main UI messages */
 "PPOI: No POIs for this body" = "PPOI: No POIs for this body";
 "PPOI: Poi's in {system}" = "PPOI: Poi's in {system}";
 "PPOI: No poi's in system" = "PPOI: No poi's in system";
+
+/* Context menu actions */
+"Add new POI" = "Add new POI";
+"Add folder" = "Add folder";
+"Add root folder" = "Add root folder";
+"Settings" = "Settings";
+"Move folder" = "Move folder";
+"Delete folder" = "Delete folder";
+"Copy systemname" = "Copy systemname";
+"Copy coordinates" = "Copy coordinates";
+"Copy system name" = "Copy system name";
+"Copy body name" = "Copy body name";
+"Share link" = "Share link";
+"Edit" = "Edit";
+"Move POI" = "Move POI";
+"Delete POI" = "Delete POI";
+"Activate POI" = "Activate POI";
+"Deactivate POI" = "Deactivate POI";
+"Activate" = "Activate";
+"Deactivate" = "Deactivate";
+"Actions" = "Actions";
+"(Empty)" = "(Empty)";
+
+/* Dialogs */
+"Share POI" = "Share POI";
+"Copy this link to share the POI:" = "Copy this link to share the POI:";
+"Copy to clipboard" = "Copy to clipboard";
+"Add Folder" = "Add Folder";
+"Folder name:" = "Folder name:";
+"Add" = "Add";
+"Move {item_type}" = "Move {item_type}";
+"Select destination folder:" = "Select destination folder:";
+"Move" = "Move";
+"Cancel" = "Cancel";
+"(Root level)" = "(Root level)";
+
+/* Delete confirmations */
+"Delete {item_type}" = "Delete {item_type}";
+"Are you sure you want to delete this folder?\n\n{item_name}\n\n" = "Are you sure you want to delete this folder?\n\n{item_name}\n\n";
+"Are you sure you want to delete this {item_type}?\n\n{item_name}" = "Are you sure you want to delete this {item_type}?\n\n{item_name}";
+"This will also delete:\n" = "This will also delete:\n";
+"• {subfolder_count} subfolder(s)\n" = "• {subfolder_count} subfolder(s)\n";
+"• {poi_count} POI(s)" = "• {poi_count} POI(s)";
+
+/* Status messages */
+"Description updated!" = "Description updated!";
+"Invalid input!" = "Invalid input!";
+"No valid planet/location to save!" = "No valid planet/location to save!";
