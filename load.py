@@ -39,6 +39,7 @@ CURRENT_SYSTEM = None
 
 # Latest position for "Save current location"
 last_lat, last_lon, last_body = None, None, None
+last_altitude, last_planet_radius = 0, 1000000
 
 # Settings table sorting
 SORT_COLUMN = "body"  # Default sort column: "body", "lat", "lon", "description"
@@ -598,6 +599,11 @@ def show_add_poi_dialog(parent_frame, prefill_system=None, edit_poi=None, parent
         
         save_pois()
         redraw_plugin_app()
+        
+        # Force overlay update if we're currently on a body
+        if last_body and last_lat is not None and last_lon is not None:
+            update_overlay_for_current_position()
+        
         dialog.destroy()
     
     # Buttons aligned to the right, same as inputs and paste button
@@ -766,7 +772,7 @@ def show_item_actions_popup(item, item_type, frame, body_name):
         )
         popup.add_command(
             label=plugin_tl("Share link"),
-            command=lambda: share_poi_link(item)
+            command=lambda: show_share_popup(frame, item)
         )
         popup.add_command(
             label=plugin_tl("Edit"),
@@ -891,7 +897,7 @@ def show_menu_dropdown(frame, button, body_name):
                 )
                 poi_submenu.add_command(
                     label=plugin_tl("Share link"),
-                    command=lambda p=item: share_poi_link(p)
+                    command=lambda p=item: show_share_popup(frame, p)
                 )
                 poi_submenu.add_command(
                     label=plugin_tl("Edit"),
@@ -980,7 +986,7 @@ def show_poi_context_menu_main(event, poi, frame):
     )
     menu.add_command(
         label=plugin_tl("Share link"),
-        command=lambda: share_poi_link(poi)
+        command=lambda: show_share_popup(frame, poi)
     )
     menu.add_command(
         label=plugin_tl("Move POI"),
@@ -2061,56 +2067,43 @@ def prefs_changed(cmdr, is_beta):
     save_pois()
     redraw_plugin_app()
 
-def dashboard_entry(cmdr, is_beta, entry):
-    global last_lat, last_lon, last_body, CURRENT_SYSTEM, OVERLAY_INFO_TEXT
-
-    altitude = entry.get("Altitude") or 0
-    lat = entry.get("Latitude")
-    lon = entry.get("Longitude")
-    bodyname = entry.get("BodyName")
-    planet_radius = entry.get("PlanetRadius") or 1000000  # Default radius if missing
+def update_overlay_for_current_position():
+    """Update overlay based on current position. Called after adding/editing POI or from dashboard updates."""
+    global OVERLAY_INFO_TEXT, OVERLAY_INFO_LABEL
     
-    if lat is not None and lon is not None and bodyname:
-        prev_body = last_body
-        last_lat, last_lon, last_body = lat, lon, bodyname
-        body_changed = str(prev_body) != str(bodyname)
- 
-    # Only clear overlay if we're definitely not on a body anymore
-    if bodyname is None and last_body:
-        last_body = None
-        OVERLAY_INFO_TEXT = ""
+    print(f"PPOI: update_overlay_for_current_position() called - last_lat={last_lat}, last_lon={last_lon}, last_body={last_body}")
+    
+    # If we don't have valid position data, clear overlay
+    if last_lat is None or last_lon is None or not last_body:
         overlay.clear_all_poi_rows()
-        redraw_plugin_app()
-        return
-    
-    # If we don't have coordinates, skip update
-    if lat is None or lon is None or bodyname is None:
         OVERLAY_INFO_TEXT = ""
-        return
-
-    # Update overlay on EVERY dashboard update when we have coordinates
-    visible_pois = [poi for poi in get_all_pois_flat(ALL_POIS) if poi.get("active", True) and get_full_body_name(poi) == bodyname]
-
+        print("PPOI: No valid position data, cleared overlay")
+        return False  # Return False to indicate no update
+    
+    # Get all active POIs for current body
+    visible_pois = [poi for poi in get_all_pois_flat(ALL_POIS) if poi.get("active", True) and get_full_body_name(poi) == last_body]
+    print(f"PPOI: Found {len(visible_pois)} active POIs for body {last_body}")
+    
     poi_texts = []
     for poi in visible_pois:
         poi_lat = poi.get("lat")
         poi_lon = poi.get("lon")
         poi_desc = poi.get("description", "")
-
+        
         distance, bearing = calculate_bearing_and_distance(
-            lat, lon,
+            last_lat, last_lon,
             poi_lat, poi_lon,
-            planet_radius,
-            altitude, 0,  # alt1 = current, alt2 = 0
+            last_planet_radius,
+            last_altitude, 0,  # alt1 = current, alt2 = 0
             calc_with_altitude=config.get(ALT_KEY, False)
         )
-
+        
         if not poi_desc:
-            if lat is not None and lon is not None:
+            if poi_lat is not None and poi_lon is not None:
                 poi_desc = f"{poi_lat:.4f}, {poi_lon:.4f}"
             else:
                 poi_desc = "(No description)"
-
+        
         unit = "m"
         show_dist = distance
         if distance > 1_000:
@@ -2121,32 +2114,93 @@ def dashboard_entry(cmdr, is_beta, entry):
             unit = "Mm"
         poi_texts.append(f"{round(bearing)}° / {round(show_dist, 2)}{unit} {poi_desc}")
     
+    prev_text = OVERLAY_INFO_TEXT
+    needs_gui_rebuild = False
+    
+    print(f"PPOI: Generated {len(poi_texts)} POI texts, prev_text empty: {not prev_text}")
+    
     if poi_texts:
         overlay.show_poi_rows(poi_texts)
         # Store overlay info for GUI display - limit to max rows
         max_rows = config.get_int(ROWS_KEY)
         gui_poi_texts = poi_texts[:max_rows] if max_rows > 0 and len(poi_texts) > max_rows else poi_texts
         OVERLAY_INFO_TEXT = "\n".join(gui_poi_texts)
-        # If body changed, redraw entire GUI to show directions
-        if body_changed:
-            redraw_plugin_app()
-        # Otherwise just update the label directly if it exists
-        elif OVERLAY_INFO_LABEL and config.get_int(SHOW_GUI_INFO_KEY):
-            try:
-                OVERLAY_INFO_LABEL.config(text=OVERLAY_INFO_TEXT)
-            except:
-                pass  # Label might not exist anymore
+        
+        # Always rebuild GUI when directions appear for the first time, or if label should exist but doesn't
+        if not prev_text and OVERLAY_INFO_TEXT:
+            # Directions appeared for first time - always rebuild GUI
+            needs_gui_rebuild = True
+            print(f"PPOI: Directions appeared for first time, needs_gui_rebuild=True")
+        elif config.get_int(SHOW_GUI_INFO_KEY):
+            # Directions should be shown in GUI
+            if not OVERLAY_INFO_LABEL:
+                # Label should exist but doesn't - rebuild
+                needs_gui_rebuild = True
+                print(f"PPOI: Label should exist but doesn't, needs_gui_rebuild=True")
+            else:
+                # Update existing label
+                try:
+                    OVERLAY_INFO_LABEL.config(text=OVERLAY_INFO_TEXT)
+                except:
+                    needs_gui_rebuild = True  # Label is broken, rebuild
     else:
         overlay.clear_all_poi_rows()
         OVERLAY_INFO_TEXT = ""
-        # If body changed, redraw GUI
-        if body_changed:
-            redraw_plugin_app()
-        elif OVERLAY_INFO_LABEL:
+        if OVERLAY_INFO_LABEL:
             try:
                 OVERLAY_INFO_LABEL.config(text="")
             except:
                 pass
+        # If we had text before but now don't, rebuild to remove directions section
+        if prev_text:
+            needs_gui_rebuild = True
+    
+    print(f"PPOI: update_overlay_for_current_position returning needs_gui_rebuild={needs_gui_rebuild}")
+    return needs_gui_rebuild  # Return True if GUI rebuild is needed
+
+def dashboard_entry(cmdr, is_beta, entry):
+    global last_lat, last_lon, last_body, last_altitude, last_planet_radius, CURRENT_SYSTEM, OVERLAY_INFO_TEXT
+
+    altitude = entry.get("Altitude") or 0
+    lat = entry.get("Latitude")
+    lon = entry.get("Longitude")
+    bodyname = entry.get("BodyName")
+    planet_radius = entry.get("PlanetRadius") or 1000000  # Default radius if missing
+    
+    # Track body changes
+    body_changed = False
+    prev_body = last_body
+    
+    # Update last_body even if we don't have coordinates (e.g., in orbit)
+    if bodyname:
+        last_body = bodyname
+        body_changed = str(prev_body) != str(bodyname)
+        # Only update coordinates if we have them (on surface)
+        if lat is not None and lon is not None:
+            last_lat, last_lon = lat, lon
+            last_altitude, last_planet_radius = altitude, planet_radius
+    else:
+        # No body anymore - clear everything
+        if last_body:
+            last_body = None
+            OVERLAY_INFO_TEXT = ""
+            overlay.clear_all_poi_rows()
+            redraw_plugin_app()
+            return
+    
+    # If body changed, redraw GUI immediately to show body mode
+    if body_changed:
+        redraw_plugin_app()
+    
+    # Only update overlay if we have coordinates (on surface, not in orbit)
+    if lat is not None and lon is not None and bodyname:
+        print(f"PPOI: dashboard_entry calling update_overlay (lat={lat}, lon={lon}, body={bodyname})")
+        needs_rebuild = update_overlay_for_current_position()
+        print(f"PPOI: update_overlay returned needs_rebuild={needs_rebuild}, body_changed={body_changed}")
+        # If the overlay update determined GUI needs rebuild (e.g., directions appeared), do it
+        if needs_rebuild and not body_changed:  # Don't rebuild twice if body already changed
+            print("PPOI: Rebuilding GUI because directions appeared")
+            redraw_plugin_app()
 
 
 def calculate_bearing_and_distance(lat1, lon1, lat2, lon2, planet_radius_m, alt1=0, alt2=0, calc_with_altitude=False):
