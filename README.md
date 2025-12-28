@@ -20,7 +20,7 @@ Perfect for saving interesting locations while exploring, organizing your discov
 ## Screenshots
 
 ### Configuration Settings
-Adjust overlay position, maximum visible POIs, and altitude calculation options:
+Adjust overlay position, maximum visible POIs, altitude calculation options and option the show directions in EDMC gui:
 
 ![Settings](images/EDMC_Settings.png)
 
