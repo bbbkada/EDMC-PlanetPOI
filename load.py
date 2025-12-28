@@ -222,10 +222,10 @@ def plugin_start3(plugin_dir: str) -> str:
     
     # ============== SIMULATION - HARDCODED VALUES ==============
     # Comment out these lines to disable simulation
-    #CURRENT_SYSTEM = "HIP 36601"
-    #last_body = "HIP 36601 C 1 a"
-    #last_lat = -62.5  # Same as POI "Crystalline shards Tellerium"
-    #last_lon = -127.2
+    CURRENT_SYSTEM = "HIP 36601"
+    last_body = "HIP 36601 C 1 a"
+    last_lat = -67.5  # Same as POI "Crystalline shards Tellerium"
+    last_lon = 127.2
     print(f"PPOI SIMULATION: System={CURRENT_SYSTEM}, Body={last_body}, Lat={last_lat}, Lon={last_lon}")
     
     # Simulate dashboard entry to trigger overlay info calculation
