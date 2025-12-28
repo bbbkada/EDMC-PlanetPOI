@@ -43,12 +43,12 @@ Adjust overlay position, maximum visible POIs, and altitude calculation options:
 ![Settings](images/EDMC_Settings.png)
 
 ### Add/Edit POI Dialog
-Add new POIs with system name autocomplete. Auto-fills current position when on a planetary surface. Paste shared links with Ctrl+V:
+Add new POIs with system name autocomplete. Auto-fills current system and position if in planetary orbit. Paste shared links with Ctrl+V or button.
 
 ![Add POI](images/Add_poi.png)
 
 ### System View
-When entering a system, see all POIs organized by body:
+When entering a system, all POIs for current system is displayed with bodyname. Right-click for options.
 
 ![System View](images/EDMC_system.png)
 
