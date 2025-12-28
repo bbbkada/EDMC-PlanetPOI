@@ -41,7 +41,8 @@ On a planetary surface, see all POIs for current body. Use right-click to show/h
 ![Body View](images/EDMC_gui.png)
 
 ### POI Menu
-Access POI management options via the menu button (☰). Edit, move, delete, share POIs or create folders:
+Access POI management options via the menu button (☰). Edit, move, delete, share POIs or create folders.
+System POI's is represented by a Star and planetary POI's by a Globe. Folder are folders:
 
 ![POI Menu](images/dropmenu.png)
 
