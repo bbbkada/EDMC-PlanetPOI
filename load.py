@@ -346,7 +346,9 @@ def show_config_dialog(parent_frame):
                 
                 distance, bearing = calculate_bearing_and_distance(
                     last_lat, last_lon, poi_lat, poi_lon,
-                    2000000, 0, 0, calc_with_altitude=False
+                    last_planet_radius,
+                    last_altitude, 0,
+                    calc_with_altitude=config.get_int(ALT_KEY)
                 )
                 
                 unit = "m"
@@ -1073,7 +1075,9 @@ def toggle_poi_active(poi, frame):
             
             distance, bearing = calculate_bearing_and_distance(
                 last_lat, last_lon, poi_lat, poi_lon,
-                2000000, 0, 0, calc_with_altitude=False
+                last_planet_radius,
+                last_altitude, 0,
+                calc_with_altitude=config.get_int(ALT_KEY)
             )
             
             unit = "m"
@@ -2167,7 +2171,7 @@ def update_overlay_for_current_position():
             poi_lat, poi_lon,
             last_planet_radius,
             last_altitude, 0,  # alt1 = current, alt2 = 0
-            calc_with_altitude=config.get(ALT_KEY, False)
+            calc_with_altitude=config.get_int(ALT_KEY)
         )
         
         # Track closest POI for heading guidance (first POI only when guidance enabled)
@@ -2241,11 +2245,11 @@ def update_overlay_for_current_position():
             print(f"PPOI: Directions appeared for first time, needs_gui_rebuild=True")
         elif config.get_int(SHOW_GUI_INFO_KEY):
             # Directions should be shown in GUI
-            if not OVERLAY_INFO_LABEL:
+            if not OVERLAY_INFO_LABEL and OVERLAY_INFO_TEXT:
                 # Label should exist but doesn't - rebuild
                 needs_gui_rebuild = True
                 print(f"PPOI: Label should exist but doesn't, needs_gui_rebuild=True")
-            else:
+            elif OVERLAY_INFO_LABEL:
                 # Update existing label
                 try:
                     OVERLAY_INFO_LABEL.config(text=OVERLAY_INFO_TEXT)
@@ -2282,9 +2286,10 @@ def dashboard_entry(cmdr, is_beta, entry):
     if heading is not None:
         last_heading = heading
     
-    # Track body changes
+    # Track body changes AND first coordinate acquisition
     body_changed = False
     prev_body = last_body
+    first_coords = False  # Track if this is first time getting coords
     
     # Update last_body even if we don't have coordinates (e.g., in orbit)
     if bodyname:
@@ -2292,6 +2297,9 @@ def dashboard_entry(cmdr, is_beta, entry):
         body_changed = str(prev_body) != str(bodyname)
         # Only update coordinates if we have them (on surface)
         if lat is not None and lon is not None:
+            # Check if this is the first time we get coordinates
+            if last_lat is None or last_lon is None:
+                first_coords = True
             last_lat, last_lon = lat, lon
             last_altitude, last_planet_radius = altitude, planet_radius
     else:
@@ -2307,17 +2315,19 @@ def dashboard_entry(cmdr, is_beta, entry):
             redraw_plugin_app()
             return
     
-    # If body changed, redraw GUI immediately to show body mode
-    if body_changed:
+    # If body changed OR we got first coords, redraw GUI immediately
+    if body_changed or first_coords:
+        print(f"PPOI: Redrawing GUI - body_changed={body_changed}, first_coords={first_coords}")
         redraw_plugin_app()
     
     # Only update overlay if we have coordinates (on surface, not in orbit)
     if lat is not None and lon is not None and bodyname:
         print(f"PPOI: dashboard_entry calling update_overlay (lat={lat}, lon={lon}, body={bodyname}, heading={heading})")
         needs_rebuild, target_bearing, target_distance = update_overlay_for_current_position()
-        print(f"PPOI: update_overlay returned needs_rebuild={needs_rebuild}, body_changed={body_changed}")
+        print(f"PPOI: update_overlay returned needs_rebuild={needs_rebuild}, body_changed={body_changed}, first_coords={first_coords}")
         # If the overlay update determined GUI needs rebuild (e.g., directions appeared), do it
-        if needs_rebuild and not body_changed:  # Don't rebuild twice if body already changed
+        # Don't rebuild if we already did it for body change or first coords
+        if needs_rebuild and not body_changed and not first_coords:
             print("PPOI: Rebuilding GUI because directions appeared")
             redraw_plugin_app()
 
