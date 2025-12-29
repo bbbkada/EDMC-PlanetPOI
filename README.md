@@ -16,6 +16,7 @@ Perfect for saving interesting locations while exploring, organizing your discov
 - [Elite Dangerous Market Connector (EDMC)](https://github.com/EDCD/EDMarketConnector)
 - [EDMCOverlay](https://github.com/inorton/EDMCOverlay) (optional, for in-game overlay)
 - Elite Dangerous (Horizons/Odyssey for planetary landings)
+- In-game overlay only works in windowed and borderless graphics modes, due to EDMCOverlay limitations
 
 ## Screenshots
 

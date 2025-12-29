@@ -66,7 +66,7 @@ def show_poi_rows(poi_texts, color="#ff7100"):
             ttl=30,  # TTL = 30 seconds (keeps overlay visible)
             size="large"
         )
-
+ 
     # Clear old overlays if there are fewer rows than before
     for idx in range(len(poi_texts), OVERLAY_MAX_ROWS):
         y_pos = ROW_Y_START + idx * ROW_Y_STEP
