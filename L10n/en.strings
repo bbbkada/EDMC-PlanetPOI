@@ -2,7 +2,10 @@
 "Calculate distance with altitude" = "Calculate distance with altitude";
 "Max overlay rows" = "Max overlay rows";
 "Overlay left margin (pixels)" = "Overlay left margin (pixels)";
-"Show overlay info in GUI" = "Show overlay info in GUI";
+"Show overlay info in EDMC GUI" = "Show overlay info in EDMC GUI";
+"Enable Heading Guidance" = "Enable Heading Guidance";
+"Guidance angle tolerance (degrees)" = "Guidance angle tolerance (degrees)";
+"Guidance stop distance (meters)" = "Guidance stop distance (meters)";
 "Export POIs" = "Export POIs";
 "Import POIs" = "Import POIs";
 

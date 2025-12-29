@@ -12,6 +12,7 @@ import base64
 import urllib.parse
 import overlay  # overlay.py i samma katalog
 from AutoCompleter import AutoCompleter
+from heading_guidance import HeadingGuidance
 plugin_tl = functools.partial(l10n.translations.tl, context=__file__)
 
 PLUGIN_PARENT = None
@@ -26,11 +27,17 @@ ALT_KEY = "planetpoi_calc_with_altitude"
 ROWS_KEY = "planetpoi_max_overlay_rows"
 LEFT_KEY = "planetpoi_overlay_leftmargin"
 SHOW_GUI_INFO_KEY = "planetpoi_show_gui_info"
+HEADING_GUIDANCE_KEY = "planetpoi_heading_guidance"  # Enable/disable heading guidance
+GUIDANCE_THRESHOLD_KEY = "planetpoi_guidance_threshold"  # Degrees tolerance for "on course"
+GUIDANCE_DISTANCE_KEY = "planetpoi_guidance_distance"  # Distance in meters where guidance stops
 
 ALT_VAR = None
 ROWS_VAR = None
 LEFT_VAR = None
 SHOW_GUI_INFO_VAR = None
+HEADING_GUIDANCE_VAR = None
+GUIDANCE_THRESHOLD_VAR = None
+GUIDANCE_DISTANCE_VAR = None
 
 # Store overlay info for display in GUI
 OVERLAY_INFO_TEXT = ""
@@ -40,6 +47,14 @@ CURRENT_SYSTEM = None
 # Latest position for "Save current location"
 last_lat, last_lon, last_body = None, None, None
 last_altitude, last_planet_radius = 0, 1000000
+last_heading = None  # Current heading from dashboard
+
+# Heading guidance instance for graphical arrows
+heading_guidance = None
+within_2km_zone = False  # Track if we're within 2km to show checkmark only once
+
+# Heading guidance instance for graphical arrows
+heading_guidance = None
 
 # Settings table sorting
 SORT_COLUMN = "body"  # Default sort column: "body", "lat", "lon", "description"
@@ -193,7 +208,7 @@ def import_pois_from_file(parent_frame):
         print(f"PPOI: Error importing POIs: {ex}")
 
 def plugin_start3(plugin_dir: str) -> str:
-    global ALT_VAR, ROWS_VAR, LEFT_VAR, SHOW_GUI_INFO_VAR, ALL_POIS, CURRENT_SYSTEM, last_lat, last_lon, last_body
+    global ALT_VAR, ROWS_VAR, LEFT_VAR, SHOW_GUI_INFO_VAR, HEADING_GUIDANCE_VAR, GUIDANCE_THRESHOLD_VAR, GUIDANCE_DISTANCE_VAR, ALL_POIS, CURRENT_SYSTEM, last_lat, last_lon, last_body, heading_guidance
     # set default values if no config exists
     alt_val = config.get_int(ALT_KEY)
     ALT_VAR = tk.BooleanVar(value=bool(alt_val))
@@ -217,9 +232,34 @@ def plugin_start3(plugin_dir: str) -> str:
         show_gui_info_val = 1
         config.set(SHOW_GUI_INFO_KEY, show_gui_info_val)
     SHOW_GUI_INFO_VAR = tk.BooleanVar(value=bool(show_gui_info_val))
+    
+    # Heading guidance setting - default enabled
+    heading_guidance_val = config.get_int(HEADING_GUIDANCE_KEY, default=-1)
+    if heading_guidance_val == -1:  # First run - set default to enabled
+        heading_guidance_val = 1
+        config.set(HEADING_GUIDANCE_KEY, heading_guidance_val)
+    HEADING_GUIDANCE_VAR = tk.BooleanVar(value=bool(heading_guidance_val))
+    
+    # Guidance threshold (degrees tolerance for "on course") - default 4 degrees
+    guidance_threshold_val = config.get_int(GUIDANCE_THRESHOLD_KEY, default=0)
+    if guidance_threshold_val == 0:  # First run - set default
+        guidance_threshold_val = 4
+        config.set(GUIDANCE_THRESHOLD_KEY, guidance_threshold_val)
+    GUIDANCE_THRESHOLD_VAR = tk.IntVar(value=guidance_threshold_val)
+    
+    # Guidance distance (meters where guidance stops) - default 2000m (2km)
+    guidance_distance_val = config.get_int(GUIDANCE_DISTANCE_KEY, default=0)
+    if guidance_distance_val == 0:  # First run - set default
+        guidance_distance_val = 2000
+        config.set(GUIDANCE_DISTANCE_KEY, guidance_distance_val)
+    GUIDANCE_DISTANCE_VAR = tk.IntVar(value=guidance_distance_val)
    
     load_pois()
     overlay.set_overlay_settings(ROWS_VAR.get(), LEFT_VAR.get())
+    
+    # Initialize heading guidance with settings from config
+    guidance_threshold = GUIDANCE_THRESHOLD_VAR.get()
+    heading_guidance = HeadingGuidance(center_x=600, center_y=150, on_course_threshold=guidance_threshold)
     
     # ============== SIMULATION - HARDCODED VALUES ==============
     # Comment out these lines to disable simulation
@@ -1556,7 +1596,7 @@ def safe_int(val, fallback):
         return fallback
 
 def build_plugin_ui(frame):
-    global ALT_VAR, ROWS_VAR, LEFT_VAR, SHOW_GUI_INFO_VAR, POI_VARS
+    global ALT_VAR, ROWS_VAR, LEFT_VAR, SHOW_GUI_INFO_VAR, HEADING_GUIDANCE_VAR, GUIDANCE_THRESHOLD_VAR, GUIDANCE_DISTANCE_VAR, POI_VARS
     row = 0
 
     # Headers on same row
@@ -1578,10 +1618,25 @@ def build_plugin_ui(frame):
     import_btn.grid(row=row, column=5, sticky="w", padx=(0, 4))
     row += 1
     
-    # Show overlay info in GUI option
-    nb.Label(frame, text=plugin_tl("Show overlay info in GUI")).grid(row=row, column=0, columnspan=2, sticky="w", padx=(0, 8))
+    # Show overlay info in EDMC GUI option
+    nb.Label(frame, text=plugin_tl("Show overlay info in EDMC GUI")).grid(row=row, column=0, columnspan=2, sticky="w", padx=(0, 8))
     show_gui_cb = nb.Checkbutton(frame, variable=SHOW_GUI_INFO_VAR, width=2)
     show_gui_cb.grid(row=row, column=2, sticky="w", padx=(0, 4))
+    
+    # Heading guidance option on same row
+    nb.Label(frame, text=plugin_tl("Enable Heading Guidance")).grid(row=row, column=3, sticky="w", padx=(8, 8))
+    heading_guidance_cb = nb.Checkbutton(frame, variable=HEADING_GUIDANCE_VAR, width=2)
+    heading_guidance_cb.grid(row=row, column=4, sticky="w", padx=(0, 4))
+    row += 1
+    
+    # Guidance settings on same row
+    nb.Label(frame, text=plugin_tl("Guidance angle tolerance (degrees)")).grid(row=row, column=0, columnspan=2, sticky="w", padx=(0, 8))
+    guidance_threshold_entry = nb.EntryMenu(frame, textvariable=GUIDANCE_THRESHOLD_VAR, width=4)
+    guidance_threshold_entry.grid(row=row, column=2, sticky="w", padx=(0, 8))
+    
+    nb.Label(frame, text=plugin_tl("Guidance stop distance (meters)")).grid(row=row, column=3, sticky="w", padx=(8, 8))
+    guidance_distance_entry = nb.EntryMenu(frame, textvariable=GUIDANCE_DISTANCE_VAR, width=6)
+    guidance_distance_entry.grid(row=row, column=4, sticky="w", padx=(0, 4))
     row += 1
     
     # Configure column widths to prevent text clipping
@@ -2053,7 +2108,7 @@ def save_current_poi(frame):
             pass
 
 def prefs_changed(cmdr, is_beta):
-    global ALT_VAR, ROWS_VAR, LEFT_VAR, SHOW_GUI_INFO_VAR
+    global ALT_VAR, ROWS_VAR, LEFT_VAR, SHOW_GUI_INFO_VAR, HEADING_GUIDANCE_VAR, GUIDANCE_THRESHOLD_VAR, GUIDANCE_DISTANCE_VAR, heading_guidance
     # Update active status for all flat POIs
     flat_pois = get_all_pois_flat(ALL_POIS)
     for i, var in enumerate(POI_VARS):
@@ -2063,29 +2118,46 @@ def prefs_changed(cmdr, is_beta):
     config.set(ROWS_KEY, ROWS_VAR.get())
     config.set(LEFT_KEY, LEFT_VAR.get())
     config.set(SHOW_GUI_INFO_KEY, 1 if SHOW_GUI_INFO_VAR.get() else 0)
+    config.set(HEADING_GUIDANCE_KEY, 1 if HEADING_GUIDANCE_VAR.get() else 0)
+    config.set(GUIDANCE_THRESHOLD_KEY, GUIDANCE_THRESHOLD_VAR.get())
+    config.set(GUIDANCE_DISTANCE_KEY, GUIDANCE_DISTANCE_VAR.get())
     overlay.set_overlay_settings(ROWS_VAR.get(), LEFT_VAR.get())
+    
+    # Update heading guidance threshold if it exists
+    if heading_guidance:
+        heading_guidance.on_course_threshold = GUIDANCE_THRESHOLD_VAR.get()
+    
     save_pois()
     redraw_plugin_app()
 
 def update_overlay_for_current_position():
     """Update overlay based on current position. Called after adding/editing POI or from dashboard updates."""
-    global OVERLAY_INFO_TEXT, OVERLAY_INFO_LABEL
+    global OVERLAY_INFO_TEXT, OVERLAY_INFO_LABEL, within_2km_zone
     
     print(f"PPOI: update_overlay_for_current_position() called - last_lat={last_lat}, last_lon={last_lon}, last_body={last_body}")
     
     # If we don't have valid position data, clear overlay
     if last_lat is None or last_lon is None or not last_body:
         overlay.clear_all_poi_rows()
+        if heading_guidance:
+            heading_guidance.clear()
         OVERLAY_INFO_TEXT = ""
         print("PPOI: No valid position data, cleared overlay")
-        return False  # Return False to indicate no update
+        return False, None, None  # Return False to indicate no update, no bearing, no distance
     
     # Get all active POIs for current body
     visible_pois = [poi for poi in get_all_pois_flat(ALL_POIS) if poi.get("active", True) and get_full_body_name(poi) == last_body]
     print(f"PPOI: Found {len(visible_pois)} active POIs for body {last_body}")
     
+    # Check if heading guidance is enabled
+    guidance_enabled = config.get_int(HEADING_GUIDANCE_KEY, default=1) == 1
+    
     poi_texts = []
-    for poi in visible_pois:
+    closest_bearing = None
+    closest_distance = None
+    target_poi_index = 0  # Index of the POI being guided to
+    
+    for idx, poi in enumerate(visible_pois):
         poi_lat = poi.get("lat")
         poi_lon = poi.get("lon")
         poi_desc = poi.get("description", "")
@@ -2097,6 +2169,12 @@ def update_overlay_for_current_position():
             last_altitude, 0,  # alt1 = current, alt2 = 0
             calc_with_altitude=config.get(ALT_KEY, False)
         )
+        
+        # Track closest POI for heading guidance (first POI only when guidance enabled)
+        if idx == 0:
+            closest_distance = distance
+            closest_bearing = bearing
+            target_poi_index = 0
         
         if not poi_desc:
             if poi_lat is not None and poi_lon is not None:
@@ -2112,7 +2190,7 @@ def update_overlay_for_current_position():
         if show_dist > 1_000:
             show_dist /= 1_000
             unit = "Mm"
-        poi_texts.append(f"{round(bearing)}° / {round(show_dist, 2)}{unit} {poi_desc}")
+        poi_texts.append((f"{round(bearing)}° / {round(show_dist, 2)}{unit} {poi_desc}", idx == 0 and guidance_enabled))
     
     prev_text = OVERLAY_INFO_TEXT
     needs_gui_rebuild = False
@@ -2120,10 +2198,40 @@ def update_overlay_for_current_position():
     print(f"PPOI: Generated {len(poi_texts)} POI texts, prev_text empty: {not prev_text}")
     
     if poi_texts:
-        overlay.show_poi_rows(poi_texts)
+        # Show POI rows with different colors - first POI orange (target), rest gray if guidance enabled
+        overlay.show_poi_rows_with_colors(poi_texts)
+        
+        # Show graphical heading guidance if enabled and we have heading and a target bearing
+        if guidance_enabled and heading_guidance and last_heading is not None and closest_bearing is not None:
+            # Adjust Y-position based on number of POI rows
+            arrow_y = overlay.ROW_Y_START + (len(poi_texts) * overlay.ROW_Y_STEP) + 30
+            heading_guidance.center_y = arrow_y
+            heading_guidance.center_x = overlay.OVERLAY_LEFT_MARGIN + 150  # Center relative to POI texts
+            
+            # Get guidance distance from config
+            guidance_distance = config.get_int(GUIDANCE_DISTANCE_KEY, default=2000)
+            
+            # Handle guidance zone based on distance
+            if closest_distance < guidance_distance:  # Within guidance stop distance
+                if not within_2km_zone:
+                    # First time within zone - show checkmark ONCE
+                    heading_guidance.show_checkmark()
+                    within_2km_zone = True
+                else:
+                    # Already within zone - show NOTHING (clear all)
+                    heading_guidance.clear()
+            else:  # Outside guidance zone
+                # Left the zone - reset flag
+                if within_2km_zone:
+                    within_2km_zone = False
+                # Show arrows/green circle as normal
+                heading_guidance.update(last_heading, closest_bearing)
+        elif heading_guidance:
+            heading_guidance.clear()
+        
         # Store overlay info for GUI display - limit to max rows
         max_rows = config.get_int(ROWS_KEY)
-        gui_poi_texts = poi_texts[:max_rows] if max_rows > 0 and len(poi_texts) > max_rows else poi_texts
+        gui_poi_texts = [text for text, _ in poi_texts[:max_rows]] if max_rows > 0 and len(poi_texts) > max_rows else [text for text, _ in poi_texts]
         OVERLAY_INFO_TEXT = "\n".join(gui_poi_texts)
         
         # Always rebuild GUI when directions appear for the first time, or if label should exist but doesn't
@@ -2145,6 +2253,8 @@ def update_overlay_for_current_position():
                     needs_gui_rebuild = True  # Label is broken, rebuild
     else:
         overlay.clear_all_poi_rows()
+        if heading_guidance:
+            heading_guidance.clear()
         OVERLAY_INFO_TEXT = ""
         if OVERLAY_INFO_LABEL:
             try:
@@ -2156,16 +2266,21 @@ def update_overlay_for_current_position():
             needs_gui_rebuild = True
     
     print(f"PPOI: update_overlay_for_current_position returning needs_gui_rebuild={needs_gui_rebuild}")
-    return needs_gui_rebuild  # Return True if GUI rebuild is needed
+    return needs_gui_rebuild, closest_bearing, closest_distance  # Return GUI rebuild flag, bearing and distance to closest POI
 
 def dashboard_entry(cmdr, is_beta, entry):
-    global last_lat, last_lon, last_body, last_altitude, last_planet_radius, CURRENT_SYSTEM, OVERLAY_INFO_TEXT
+    global last_lat, last_lon, last_body, last_altitude, last_planet_radius, last_heading, CURRENT_SYSTEM, OVERLAY_INFO_TEXT, within_2km_zone
 
     altitude = entry.get("Altitude") or 0
     lat = entry.get("Latitude")
     lon = entry.get("Longitude")
     bodyname = entry.get("BodyName")
+    heading = entry.get("Heading")  # Get current heading from dashboard
     planet_radius = entry.get("PlanetRadius") or 1000000  # Default radius if missing
+    
+    # Update heading if available
+    if heading is not None:
+        last_heading = heading
     
     # Track body changes
     body_changed = False
@@ -2183,8 +2298,12 @@ def dashboard_entry(cmdr, is_beta, entry):
         # No body anymore - clear everything
         if last_body:
             last_body = None
+            last_heading = None
+            within_2km_zone = False  # Reset checkmark flag
             OVERLAY_INFO_TEXT = ""
             overlay.clear_all_poi_rows()
+            if heading_guidance:
+                heading_guidance.clear()
             redraw_plugin_app()
             return
     
@@ -2194,8 +2313,8 @@ def dashboard_entry(cmdr, is_beta, entry):
     
     # Only update overlay if we have coordinates (on surface, not in orbit)
     if lat is not None and lon is not None and bodyname:
-        print(f"PPOI: dashboard_entry calling update_overlay (lat={lat}, lon={lon}, body={bodyname})")
-        needs_rebuild = update_overlay_for_current_position()
+        print(f"PPOI: dashboard_entry calling update_overlay (lat={lat}, lon={lon}, body={bodyname}, heading={heading})")
+        needs_rebuild, target_bearing, target_distance = update_overlay_for_current_position()
         print(f"PPOI: update_overlay returned needs_rebuild={needs_rebuild}, body_changed={body_changed}")
         # If the overlay update determined GUI needs rebuild (e.g., directions appeared), do it
         if needs_rebuild and not body_changed:  # Don't rebuild twice if body already changed

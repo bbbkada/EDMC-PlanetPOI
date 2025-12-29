@@ -1,7 +1,6 @@
 # EDMC Planet POI Plugin
 
-Plugin for [EDMC](https://github.com/EDCD/EDMarketConnector) that helps you save and navigate to Points of Interest (POIs) on planetary surfaces in Elite Dangerous.  
-Perfect for saving interesting locations while exploring, organizing your discoveries, and sharing coordinates with other commanders.
+Plugin for [EDMC](https://github.com/EDCD/EDMarketConnector) that helps you save and navigate to Points of Interest (POIs) on planetary surfaces in Elite Dangerous. Perfect for saving interesting locations while exploring, organizing your discoveries, and sharing coordinates with other commanders.
 
 ## Installation
 
@@ -16,13 +15,13 @@ Perfect for saving interesting locations while exploring, organizing your discov
 - [Elite Dangerous Market Connector (EDMC)](https://github.com/EDCD/EDMarketConnector)
 - [EDMCOverlay](https://github.com/inorton/EDMCOverlay) (optional, for in-game overlay)
 - Elite Dangerous (Horizons/Odyssey for planetary landings)
-- In-game overlay only works in windowed and borderless graphics modes, due to EDMCOverlay limitations
+- In-game overlay only works in windowed and borderless graphics mode, due to EDMCOverlay limitations
 
 ## Screenshots
 
 ### Configuration Settings
-Adjust overlay position, maximum visible POIs, altitude calculation options and option the show directions in EDMC gui:
-All POI's are shown flat and sortable by system or description, export/import all POI's for backup/restore, sharing etc.
+Adjust overlay position to center on your screen, maximum visible POIs, altitude calculation options and option the show directions in EDMC gui. Distances for graphical ingame guidance.
+All POI's are here shown flat and sortable by system or description, export/import all POI's for backup/restore, sharing etc.
 
 ![Settings](images/EDMC_Settings.png)
 

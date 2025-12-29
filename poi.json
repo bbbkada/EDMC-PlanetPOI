@@ -166,5 +166,15 @@
     "description": "uuyy",
     "notes": "",
     "active": true
+  },
+  {
+    "type": "poi",
+    "system": "Wredguia PI-B d13-35",
+    "body": "3 a",
+    "lat": -66.443855,
+    "lon": 164.640579,
+    "description": "Other POI",
+    "notes": "",
+    "active": true
   }
 ]

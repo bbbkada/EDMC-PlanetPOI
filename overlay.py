@@ -81,6 +81,49 @@ def show_poi_rows(poi_texts, color="#ff7100"):
             size="large"
         )
 
+def show_poi_rows_with_colors(poi_texts_with_colors):
+    global OVERLAY_MAX_ROWS, OVERLAY_LEFT_MARGIN
+    """
+    Shows POI rows with different colors. First POI (target) is orange, rest are gray.
+    
+    Args:
+        poi_texts_with_colors: List of tuples (text, is_target) where is_target is True for target POI
+    """
+    if not ensure_overlay():
+        return
+
+    if len(poi_texts_with_colors) > OVERLAY_MAX_ROWS:
+        poi_texts_with_colors = poi_texts_with_colors[:OVERLAY_MAX_ROWS]
+
+    for idx, (text, is_target) in enumerate(poi_texts_with_colors):
+        y_pos = ROW_Y_START + idx * ROW_Y_STEP
+        message_id = f"poi_{idx}"
+        # Target POI is orange, others are gray
+        color = "#ff7100" if is_target else "#888888"
+        this.overlay.send_message(
+            msgid=message_id,
+            text=text,
+            color=color,
+            x=OVERLAY_LEFT_MARGIN,
+            y=y_pos,
+            ttl=30,
+            size="large"
+        )
+ 
+    # Clear old overlays if there are fewer rows than before
+    for idx in range(len(poi_texts_with_colors), OVERLAY_MAX_ROWS):
+        y_pos = ROW_Y_START + idx * ROW_Y_STEP
+        message_id = f"poi_{idx}"
+        this.overlay.send_message(
+            msgid=message_id,
+            text="",
+            color="#000000",
+            x=OVERLAY_LEFT_MARGIN,
+            y=y_pos,
+            ttl=8,
+            size="large"
+        )
+
 def show_message(message_id, text, color="#ff7100", x=2, y=2, size=8, font_weight="normal"):
     """
     Send any overlay row (for advanced custom overlays).
@@ -95,6 +138,8 @@ def show_message(message_id, text, color="#ff7100", x=2, y=2, size=8, font_weigh
             ttl=size,  # TTL = 30 seconds (keeps overlay visible)
             size="large"
         )
+
+
 
 def clear_all_poi_rows():
     global OVERLAY_MAX_ROWS, OVERLAY_LEFT_MARGIN

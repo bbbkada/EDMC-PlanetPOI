@@ -2,7 +2,10 @@
 "Calculate distance with altitude" = "Beräkna distans med altitud";
 "Max overlay rows" = "Max antal overlay-rader";
 "Overlay left margin (pixels)" = "Overlay vänstermarginal (pixlar)";
-"Show overlay info in GUI" = "Visa overlay-info i GUI";
+"Show overlay info in EDMC GUI" = "Visa overlay-info i EDMC GUI";
+"Enable Heading Guidance" = "Aktivera Kursguidning";
+"Guidance angle tolerance (degrees)" = "Guidning vinkeltolerens (grader)";
+"Guidance stop distance (meters)" = "Guidning stoppdistånd (meter)";
 "Export POIs" = "Exportera POIs";
 "Import POIs" = "Importera POIs";
 
