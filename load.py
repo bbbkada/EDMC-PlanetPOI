@@ -357,7 +357,7 @@ def show_config_dialog(parent_frame):
                 if show_dist > 1_000:
                     show_dist /= 1_000
                     unit = "Mm"
-                poi_texts.append(f"{round(bearing)}° / {round(show_dist, 2)}{unit} {poi_desc}")
+                poi_texts.append(f"{round(bearing)}° / {round(show_dist)}{unit} {poi_desc}")
             
             # Limit to max rows setting
             max_rows = ROWS_VAR.get()
@@ -1084,7 +1084,7 @@ def toggle_poi_active(poi, frame):
             if show_dist > 1_000:
                 show_dist /= 1_000
                 unit = "Mm"
-            poi_texts.append(f"{round(bearing)}° / {round(show_dist, 2)}{unit} {poi_desc}")
+            poi_texts.append(f"{round(bearing)}° / {round(show_dist)}{unit} {poi_desc}")
         
         # Limit to max rows setting
         max_rows = config.get_int(ROWS_KEY)
@@ -2190,7 +2190,7 @@ def update_overlay_for_current_position():
         if show_dist > 1_000:
             show_dist /= 1_000
             unit = "Mm"
-        poi_texts.append((f"{round(bearing)}° / {round(show_dist, 2)}{unit} {poi_desc}", idx == 0 and guidance_enabled))
+        poi_texts.append((f"{round(bearing)}° / {round(show_dist)}{unit} {poi_desc}", idx == 0 and guidance_enabled))
     
     prev_text = OVERLAY_INFO_TEXT
     needs_gui_rebuild = False
