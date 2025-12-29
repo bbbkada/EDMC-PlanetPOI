@@ -134,16 +134,6 @@
             "active": true
           }
         ]
-      },
-      {
-        "type": "poi",
-        "system": "Shinrarta Dezhra",
-        "body": "A 2",
-        "lat": -7.106503,
-        "lon": 28.045074,
-        "description": "here",
-        "notes": "",
-        "active": true
       }
     ]
   },
@@ -156,25 +146,5 @@
     "active": true,
     "system": "Orrere",
     "notes": "Tellerium and lots of other high grade raw materials"
-  },
-  {
-    "type": "poi",
-    "system": "Shinrarta Dezhra",
-    "body": "A 2",
-    "lat": -7.284663,
-    "lon": 27.750341,
-    "description": "uuyy",
-    "notes": "",
-    "active": true
-  },
-  {
-    "type": "poi",
-    "system": "Wredguia PI-B d13-35",
-    "body": "3 a",
-    "lat": -66.443855,
-    "lon": 164.640579,
-    "description": "Other POI",
-    "notes": "",
-    "active": true
   }
 ]
