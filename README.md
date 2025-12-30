@@ -36,7 +36,7 @@ When entering a system, all POIs for current system is displayed with bodyname. 
 ![System View](images/EDMC_system.png)
 
 ### Body View
-On a planetary surface, see all POIs for current body. Use right-click to show/hide directions overlay (and or GUI) visibility:
+On a planetary surface, see all POIs for current body. Use right-click to show/hide directions overlay (and or GUI) visibility, Added optional guidance direct into EDMC if you don't want in-game overlay:
 
 ![Body View](images/EDMC_gui.png)
 
