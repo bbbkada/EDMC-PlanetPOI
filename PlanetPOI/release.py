@@ -101,6 +101,7 @@ class Release(Frame):
     
     plugin_dir = None
     installed = False  # Class variable to prevent duplicate installs
+    latest_release = {}  # Class variable to store latest release data across instances
     
     def __init__(self, parent, release, gridrow):
         """Initialize the Release frame"""
@@ -132,8 +133,9 @@ class Release(Frame):
 
         self.bind("<<ReleaseUpdate>>", self.release_update)
 
-        # Trigger update after Tk main loop is running
-        self.after_idle(self.update, None)
+        # Delay version check by 2 seconds to avoid blocking EDMC startup
+        # Use lambda to properly call update method
+        self.after(2000, lambda: self.update(None))
 
     def update(self, event):
         """Start update check"""
@@ -157,6 +159,7 @@ class Release(Frame):
         try:
             headers = {"X-GitHub-Api-Version": "2022-11-28"}
             self.latest = {}
+            Release.latest_release = {}  # Reset class variable
             
             r = requests.get(
                 "https://api.github.com/repos/bbbkada/EDMC-PlanetPOI/releases/latest",
@@ -170,9 +173,17 @@ class Release(Frame):
                 safe_log('error', r.text)
             else:
                 self.latest = r.json()
+                Release.latest_release = self.latest  # Store in class variable
                 safe_log('debug', "Latest release downloaded")
                 if not config.shutting_down:
-                    self.after_idle(lambda: self.event_generate("<<ReleaseUpdate>>", when="tail"))
+                    # Schedule event generation, but wrap in try/except to handle widget destruction
+                    def safe_event_generate():
+                        try:
+                            self.event_generate("<<ReleaseUpdate>>", when="tail")
+                        except tk.TclError:
+                            # Widget was destroyed - this is normal if settings dialog was closed
+                            safe_log('debug', "Widget destroyed, skipping event generation")
+                    self.after_idle(safe_event_generate)
         except Exception as e:
             safe_log('error', f"Failed to check for updates: {str(e)}")
 
@@ -220,6 +231,9 @@ class Release(Frame):
 
     def plugin_prefs(self, parent, cmdr, is_beta, gridrow, auto_update_var, auto_remove_backups_var):
         """Create preferences UI using passed IntVars from load.py"""
+        # Ensure parent expands horizontally
+        parent.columnconfigure(0, weight=1)
+        
         frame = nb.Frame(parent)
         frame.columnconfigure(2, weight=1)  # Column 2 expands to push version right
         frame.grid(row=gridrow, column=0, sticky="NSEW")
@@ -241,25 +255,31 @@ class Release(Frame):
             frame,
             text=f"v{ClientVersion.version()}",
             url="https://github.com/bbbkada/EDMC-PlanetPOI",
-            anchor=tk.W
+            anchor=tk.E
         )
-        version_link.grid(row=0, column=2, sticky="NW", padx=(10, 0))
+        version_link.grid(row=0, column=2, sticky="NE", padx=(10, 5))
         
         # Update button - only shown when new version is available
-        # Check if update is available
-        if self.latest:
+        # Check if update is available - use class variable if instance variable is empty
+        latest_data = self.latest if self.latest else Release.latest_release
+        safe_log('debug', f"plugin_prefs called - latest_data: {latest_data}")
+        if latest_data:
             current = self.version2number(self.release)
-            release = self.version2number(self.latest.get("tag_name", "0.0.0"))
+            release = self.version2number(latest_data.get("tag_name", "0.0.0"))
+            safe_log('debug', f"Version check - current: {current}, release: {release}")
             
             if current < release:
                 # New version available - show update button
+                safe_log('info', f"Showing update button for {latest_data.get('tag_name')}")
                 update_btn = nb.Button(
                     frame,
-                    text=f"Update to {self.latest.get('tag_name')}",
+                    text=f"Update to {latest_data.get('tag_name')}",
                     command=self.click_installer,
                     width=18
                 )
-                update_btn.grid(row=0, column=3, sticky="NW", padx=(10, 0))
+                update_btn.grid(row=0, column=3, sticky="NE", padx=(0, 5))
+        else:
+            safe_log('debug', "No latest release data available")
 
         return frame
 

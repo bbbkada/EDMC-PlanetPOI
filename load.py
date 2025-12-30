@@ -183,10 +183,15 @@ def import_pois_from_file(parent_frame):
         print(f"PPOI: Error importing POIs: {ex}")
 
 def plugin_start3(plugin_dir: str) -> str:
+    import time
+    start_time = time.time()
+    print(f"[PPOI TIMING] plugin_start3 started")
+    
     global ALT_VAR, ROWS_VAR, LEFT_VAR, SHOW_GUI_INFO_VAR, HEADING_GUIDANCE_VAR, GUIDANCE_THRESHOLD_VAR, GUIDANCE_DISTANCE_VAR, AUTO_UPDATE_VAR, AUTO_REMOVE_BACKUPS_VAR, ALL_POIS, CURRENT_SYSTEM, last_lat, last_lon, last_body, heading_guidance, RELEASE_FRAME
     
     # Initialize release management
     Release.plugin_start(plugin_dir)
+    print(f"[PPOI TIMING] Release.plugin_start: {time.time() - start_time:.3f}s")
     
     # set default values if no config exists
     alt_val = config.get_int(ALT_KEY)
@@ -251,8 +256,11 @@ def plugin_start3(plugin_dir: str) -> str:
     else:
         auto_remove_backups_val = 1 if auto_remove_backups_str == "1" else 0
     AUTO_REMOVE_BACKUPS_VAR = tk.IntVar(value=auto_remove_backups_val)
+    print(f"[PPOI TIMING] Config initialized: {time.time() - start_time:.3f}s")
    
     load_pois()  # This now calls the wrapper which updates ALL_POIS
+    print(f"[PPOI TIMING] POIs loaded: {time.time() - start_time:.3f}s")
+    
     overlay.set_overlay_settings(ROWS_VAR.get(), LEFT_VAR.get())
     
     # Initialize heading guidance with settings from config
@@ -261,6 +269,7 @@ def plugin_start3(plugin_dir: str) -> str:
     
     # Initialize modules with dependency injection
     _init_modules()
+    print(f"[PPOI TIMING] Modules initialized: {time.time() - start_time:.3f}s")
     
     # ============== SIMULATION - HARDCODED VALUES ==============
     # Comment out these lines to disable simulation
@@ -281,6 +290,7 @@ def plugin_start3(plugin_dir: str) -> str:
     dashboard_entry(None, False, simulated_entry)
     # ============================================================
     
+    print(f"[PPOI TIMING] plugin_start3 completed: {time.time() - start_time:.3f}s")
     return "PlanetPOI"
 
 def _init_modules():

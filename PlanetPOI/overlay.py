@@ -7,21 +7,33 @@ this = sys.modules[__name__]
 # Initialize module-level variables
 overlay = None
 overlay_available = False
+_connection_attempted = False  # Track if we've tried to connect
 
-try:
-    from edmcoverlay import Overlay
-    overlay = Overlay()
-    overlay.connect()
-    overlay_available = True
-    # Also set on this for backward compatibility
-    this.overlay = overlay
-    this.overlay_available = True
-except Exception as e:
-    print(f"Unable to load EDMCOverlay: {e}")
-    overlay = None
-    overlay_available = False
-    this.overlay = None
-    this.overlay_available = False
+def _try_connect():
+    """Attempt to connect to EDMCOverlay - called lazily on first use"""
+    global overlay, overlay_available, _connection_attempted, this
+    
+    if _connection_attempted:
+        return overlay_available
+    
+    _connection_attempted = True
+    
+    try:
+        from edmcoverlay import Overlay
+        overlay = Overlay()
+        overlay.connect()
+        overlay_available = True
+        # Also set on this for backward compatibility
+        this.overlay = overlay
+        this.overlay_available = True
+        return True
+    except Exception as e:
+        print(f"Unable to load EDMCOverlay: {e}")
+        overlay = None
+        overlay_available = False
+        this.overlay = None
+        this.overlay_available = False
+        return False
 
 try:
     import myNotebook as nb
@@ -172,9 +184,17 @@ def clear_all_poi_rows():
         )
 
 def ensure_overlay():
-    global overlay, overlay_available
+    global overlay, overlay_available, _connection_attempted
+    
+    # First time - try lazy connection
+    if not _connection_attempted:
+        return _try_connect()
+    
+    # Already tried - check if it's available
     if overlay_available:
         return True
+    
+    # Not available - try to reconnect
     try:
         from edmcoverlay import Overlay
         overlay = Overlay()
