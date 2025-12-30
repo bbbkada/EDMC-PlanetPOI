@@ -318,30 +318,41 @@ class Release(Frame):
             z.extractall(extract_to)
             safe_log('debug', "ZIP extraction complete")
             
+            # GitHub creates a folder named "EDMC-PlanetPOI-{tag_name}" - rename it to temp name
+            extracted_dir = os.path.join(extract_to, f"EDMC-PlanetPOI-{tag_name}")
+            if os.path.isdir(extracted_dir):
+                safe_log('debug', f"Renaming {extracted_dir} to {new_plugin_dir}")
+                os.rename(extracted_dir, new_plugin_dir)
+                safe_log('debug', "Rename complete")
+            else:
+                safe_log('error', f"Expected directory not found: {extracted_dir}")
+                # List what actually got extracted
+                safe_log('error', f"Contents of {extract_to}:")
+                try:
+                    for item in os.listdir(extract_to):
+                        if item.startswith("EDMC-PlanetPOI"):
+                            safe_log('error', f"  - {item}")
+                except Exception as list_err:
+                    safe_log('error', f"Failed to list directory: {list_err}")
+            
         except Exception as e:
             safe_log('error', f"Download/extract failed: {str(e)}")
             self.hyperlink["text"] = f"Upgrade failed - {str(e)}"
             return False
 
-        # Verify extracted directory exists
+        # Verify extracted directory exists after rename
         if not os.path.isdir(new_plugin_dir):
-            safe_log('error', f"Extracted directory not found: {new_plugin_dir}")
-            # List what actually got extracted
-            parent_dir = os.path.dirname(Release.plugin_dir)
-            safe_log('error', f"Contents of {parent_dir}:")
-            try:
-                for item in os.listdir(parent_dir):
-                    safe_log('error', f"  - {item}")
-            except Exception as e:
-                safe_log('error', f"Failed to list directory: {e}")
+            safe_log('error', f"Temporary directory not found after extraction: {new_plugin_dir}")
             self.hyperlink["text"] = "Upgrade failed - extracted files not found"
             return False
         
         safe_log('debug', f"Verified temporary directory exists: {new_plugin_dir}")
 
-        # Create backup of current plugin directory
-        backup_dir = f"{Release.plugin_dir}.backup"
-        safe_log('debug', f"Creating backup: {backup_dir}")
+        # Create backup of current plugin directory with old version number and .disabled suffix
+        # This prevents EDMC from loading it as a duplicate plugin
+        old_version = ClientVersion.version()
+        backup_dir = f"{Release.plugin_dir}.{old_version}.disabled"
+        safe_log('debug', f"Creating backup with .disabled suffix: {backup_dir}")
         
         try:
             # Remove old backup if it exists
@@ -352,11 +363,16 @@ class Release(Frame):
             shutil.copytree(Release.plugin_dir, backup_dir)
             safe_log('debug', "Backup created successfully")
             
-            # Copy new files to current plugin directory (overwrite)
+            # Copy new files to current plugin directory (overwrite, except poi.json)
             safe_log('debug', f"Copying new files to {Release.plugin_dir}")
             for item in os.listdir(new_plugin_dir):
                 src = os.path.join(new_plugin_dir, item)
                 dst = os.path.join(Release.plugin_dir, item)
+                
+                # NEVER overwrite poi.json - user data must be preserved
+                if item == "poi.json" and os.path.exists(dst):
+                    safe_log('info', f"Skipping poi.json - preserving existing user data")
+                    continue
                 
                 if os.path.isdir(src):
                     if os.path.exists(dst):
@@ -371,13 +387,8 @@ class Release(Frame):
             shutil.rmtree(new_plugin_dir)
             safe_log('debug', "Temporary directory removed")
             
-            # Remove the backup directory immediately after successful update
-            if os.path.exists(backup_dir):
-                try:
-                    shutil.rmtree(backup_dir)
-                    safe_log('debug', f"Backup directory {backup_dir} removed")
-                except Exception as e:
-                    safe_log('warning', f"Could not remove backup directory: {e}")
+            # Keep the .disabled backup directory for user reference
+            safe_log('info', f"Backup created at {backup_dir} (.disabled prevents loading as plugin)")
             
             safe_log('info', f"Upgrade to {tag_name} complete - please restart EDMC")
             Release.installed = True
