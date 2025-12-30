@@ -311,6 +311,9 @@ def _init_modules():
             'show_move_dialog': show_move_dialog,
             'show_share_popup': show_share_popup,
             'confirm_delete_item': confirm_delete_item,
+            'delete_item': delete_item,
+            'move_item': move_item,
+            'count_folder_contents': count_folder_contents,
             'generate_share_url': generate_share_url,
             'remove_poi_obj': remove_poi_obj,
             'save_desc_obj': save_desc_obj,
@@ -393,7 +396,11 @@ def show_config_dialog(parent_frame):
                 if show_dist > 1_000:
                     show_dist /= 1_000
                     unit = "Mm"
-                poi_texts.append(f"{round(bearing)}° / {round(show_dist)}{unit} {poi_desc}")
+                
+                if unit == "m":
+                    poi_texts.append(f"{round(bearing)}°/ {round(show_dist)}{unit} {poi_desc}")
+                else:
+                    poi_texts.append(f"{round(bearing)}°/ {show_dist:.1f}{unit} {poi_desc}")
             
             # Limit to max rows setting
             max_rows = ROWS_VAR.get()
@@ -851,7 +858,11 @@ def toggle_poi_active(poi, frame):
             if show_dist > 1_000:
                 show_dist /= 1_000
                 unit = "Mm"
-            poi_texts.append(f"{round(bearing)}° / {round(show_dist)}{unit} {poi_desc}")
+            
+            if unit == "m":
+                poi_texts.append(f"{round(bearing)}°/ {round(show_dist)}{unit} {poi_desc}")
+            else:
+                poi_texts.append(f"{round(bearing)}°/ {show_dist:.1f}{unit} {poi_desc}")
         
         # Limit to max rows setting
         max_rows = config.get_int(ROWS_KEY)
@@ -1298,7 +1309,11 @@ def update_overlay_for_current_position():
         if show_dist > 1_000:
             show_dist /= 1_000
             unit = "Mm"
-        poi_texts.append((f"{round(bearing)}° / {round(show_dist)}{unit} {poi_desc}", idx == 0 and guidance_enabled))
+        
+        if unit == "m":
+            poi_texts.append((f"{round(bearing)}°/ {round(show_dist)}{unit} {poi_desc}", idx == 0 and guidance_enabled))
+        else:
+            poi_texts.append((f"{round(bearing)}°/ {show_dist:.1f}{unit} {poi_desc}", idx == 0 and guidance_enabled))
     
     if poi_texts:
         # Show POI rows with different colors - first POI orange (target), rest gray if guidance enabled
@@ -1415,7 +1430,10 @@ def dashboard_entry(cmdr, is_beta, entry):
                         desc = first_poi.get("description", "")
                         if not desc:
                             desc = f"{poi_lat:.4f}, {poi_lon:.4f}"
-                        display_text = f"{desc} - {round(bearing)}°/{round(show_dist)}{unit}"
+                        if unit == "m":
+                            display_text = f"{desc} - {round(bearing)}°/ {round(show_dist)}{unit}"
+                        else:
+                            display_text = f"{desc} - {round(bearing)}°/ {show_dist:.1f}{unit}"
                         FIRST_POI_LABEL.config(text=display_text)
                     
                     # Update guidance widgets if they exist
@@ -1445,13 +1463,33 @@ def dashboard_entry(cmdr, is_beta, entry):
                         left_arrows = "<" * num_arrows if deviation < -guidance_threshold else ""
                         GUIDANCE_LEFT_LABEL.config(text=left_arrows)
                         
-                        center_text = f"{round(bearing)}° / {round(show_dist)}{unit}"
-                        # Set both text and color in one call
-                        if on_course:
-                            GUIDANCE_CENTER_LABEL.config(text=center_text, foreground="#00aa00")
+                        if unit == "m":
+                            center_text = f"{round(bearing)}°/ {round(show_dist)}{unit}"
                         else:
-                            # Restore default foreground color
-                            GUIDANCE_CENTER_LABEL.config(text=center_text, foreground=GUIDANCE_DEFAULT_FG if GUIDANCE_DEFAULT_FG else "")
+                            center_text = f"{round(bearing)}°/ {show_dist:.1f}{unit}"
+                        # Update guidance labels
+                        left_arrows = "<" * num_arrows if deviation < -guidance_threshold else ""
+                        GUIDANCE_LEFT_LABEL.config(text=left_arrows)
+                        
+                        if unit == "m":
+                            center_text = f"{round(bearing)}°/ {round(show_dist)}{unit}"
+                        else:
+                            center_text = f"{round(bearing)}°/ {show_dist:.1f}{unit}"
+                        
+                        # Update text
+                        GUIDANCE_CENTER_LABEL.config(text=center_text)
+                        
+                        # Update color based on on_course status
+                        if on_course:
+                            GUIDANCE_CENTER_LABEL.config(foreground="#00aa00")
+                        else:
+                            # Get current theme's default foreground color by creating temp label
+                            import tkinter as tk
+                            temp_label = tk.Label()
+                            theme.update(temp_label)
+                            default_fg = temp_label.cget("foreground")
+                            temp_label.destroy()
+                            GUIDANCE_CENTER_LABEL.config(foreground=default_fg)
                         
                         right_arrows = ">" * num_arrows if deviation > guidance_threshold else ""
                         GUIDANCE_RIGHT_LABEL.config(text=right_arrows)

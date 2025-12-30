@@ -121,7 +121,7 @@
             "lon": 164.924393,
             "description": "Iyer Plant",
             "notes": "",
-            "active": false
+            "active": true
           },
           {
             "type": "poi",
@@ -143,38 +143,8 @@
     "lat": 43.8214,
     "lon": -173.98,
     "description": "Crashed Anaconda",
-    "active": false,
+    "active": true,
     "system": "Orrere",
     "notes": "Tellerium and lots of other high grade raw materials"
-  },
-  {
-    "type": "poi",
-    "system": "Wredguia PI-B d13-35",
-    "body": "10 c",
-    "lat": -1.276263,
-    "lon": 78.57029,
-    "description": "Double crater ridge",
-    "notes": "",
-    "active": true
-  },
-  {
-    "type": "poi",
-    "system": "Wredguia PI-B d13-35",
-    "body": "10 c",
-    "lat": 7.700851,
-    "lon": 179.247177,
-    "description": "Minor",
-    "notes": "",
-    "active": false
-  },
-  {
-    "type": "poi",
-    "system": "Wredguia PI-B d13-35",
-    "body": "3 a",
-    "lat": -68.674049,
-    "lon": 177.441986,
-    "description": "Point",
-    "notes": "",
-    "active": true
   }
 ]

@@ -161,7 +161,10 @@ def update_guidance_widgets():
         GUIDANCE_LEFT_LABEL.config(text=left_arrows)
         
         # Update center text and color
-        center_text = f"{round(bearing)}° / {round(show_dist)}{unit}"
+        if unit == "m":
+            center_text = f"{round(bearing)}°/ {round(show_dist)}{unit}"
+        else:
+            center_text = f"{round(bearing)}°/ {show_dist:.1f}{unit}"
         if on_course:
             GUIDANCE_CENTER_LABEL.config(text=center_text, foreground="#00aa00")
         else:
@@ -189,7 +192,10 @@ def update_guidance_widgets():
                 else:
                     poi_desc = "(No description)"
             
-            display_text = f"{poi_desc} - {round(bearing)}°/{round(show_dist)}{unit}"
+            if unit == "m":
+                display_text = f"{poi_desc} - {round(bearing)}°/ {round(show_dist)}{unit}"
+            else:
+                display_text = f"{poi_desc} - {round(bearing)}°/ {show_dist:.1f}{unit}"
             FIRST_POI_LABEL.config(text=display_text)
         
         return True  # Successfully updated

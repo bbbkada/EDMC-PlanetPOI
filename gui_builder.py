@@ -226,13 +226,19 @@ def build_plugin_content(frame):
                     left_label = tk.Label(guidance_frame, text=left_arrows, font=('TkDefaultFont', 12), anchor="e")
                     left_label.grid(row=0, column=0, sticky="e", padx=(2, 0))
                     
-                    center_text = f"{round(bearing)}° / {round(show_dist)}{unit}"
-                    center_color = "#00aa00" if on_course else None
-                    center_kwargs = {"text": center_text, "font": ('TkDefaultFont', 10, 'bold'), "anchor": "center"}
-                    if center_color:
-                        center_kwargs["foreground"] = center_color
-                    center_label = tk.Label(guidance_frame, **center_kwargs)
+                    if unit == "m":
+                        center_text = f"{round(bearing)}°/ {round(show_dist)}{unit}"
+                    else:
+                        center_text = f"{round(bearing)}°/ {show_dist:.1f}{unit}"
+                    
+                    # Create label without custom color
+                    center_label = tk.Label(guidance_frame, text=center_text, font=('TkDefaultFont', 10, 'bold'), anchor="center")
                     center_label.grid(row=0, column=1, sticky="ew", padx=2)
+                    theme.update(center_label)
+                    
+                    # Set green color if on_course
+                    if on_course:
+                        center_label.config(foreground="#00aa00")
                     
                     right_arrows = ">" * num_arrows if deviation > guidance_threshold else ""
                     right_label = tk.Label(guidance_frame, text=right_arrows, font=('TkDefaultFont', 12), anchor="w")
@@ -240,7 +246,6 @@ def build_plugin_content(frame):
                     
                     theme.update(guidance_frame)
                     theme.update(left_label)
-                    theme.update(center_label)
                     theme.update(right_label)
                     
                     # Store references for guidance_manager
@@ -248,7 +253,6 @@ def build_plugin_content(frame):
                     g['GUIDANCE_LEFT_LABEL'] = left_label
                     g['GUIDANCE_CENTER_LABEL'] = center_label
                     g['GUIDANCE_RIGHT_LABEL'] = right_label
-                    g['GUIDANCE_DEFAULT_FG'] = center_label.cget("foreground")  # Save default color after theme applied
                     
                     row += 1
                 else:
@@ -304,7 +308,10 @@ def build_plugin_content(frame):
                 )
                 
                 show_dist, unit = format_distance_with_unit(distance)
-                display_text = f"{desc} - {round(bearing)}°/{round(show_dist)}{unit}"
+                if unit == "m":
+                    display_text = f"{desc} - {round(bearing)}°/ {round(show_dist)}{unit}"
+                else:
+                    display_text = f"{desc} - {round(bearing)}°/ {show_dist:.1f}{unit}"
                 shown_first_active = True
         
         label_kwargs = {"text": display_text, "font": small_font}
