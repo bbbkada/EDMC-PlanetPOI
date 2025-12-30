@@ -39,7 +39,7 @@ def safe_log(level, message):
 
 class ClientVersion:
     """Version information for the plugin"""
-    ver = "1.7.9"  # Update this with each release
+    ver = "1.7.8"  # Update this with each release
     client_version = f"EDMC-PlanetPOI.{ver}"
 
     @classmethod
@@ -297,13 +297,23 @@ class Release(Frame):
 
     def click_installer(self):
         """Handle manual install button click"""
-        # Run installer and show dialog if successful
+        # Run installer and show dialog with result
         success = self.installer(manual_update=True)
         if success:
             messagebox.showinfo(
                 "Update Complete",
                 "The plugin has been updated successfully.\n\n"
                 "Please restart EDMC for the changes to take effect."
+            )
+        else:
+            messagebox.showerror(
+                "Update Failed",
+                "Failed to install the update.\n\n"
+                "This may be caused by:\n"
+                "- EDMC is running with insufficient permissions\n"
+                "- Antivirus software blocking the update\n"
+                "- Files are locked by another process\n\n"
+                "Try running EDMC as administrator or check the EDMC log for details."
             )
 
     def installer(self, manual_update=False):
