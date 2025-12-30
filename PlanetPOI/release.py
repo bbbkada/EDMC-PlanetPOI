@@ -401,60 +401,58 @@ class Release(Frame):
         
         safe_log('debug', f"Verified temporary directory exists: {new_plugin_dir}")
 
-        # Create backup of current plugin directory with old version number and .disabled suffix
-        # This prevents EDMC from loading it as a duplicate plugin
-        # Normalize plugin directory name (remove version suffix if present) for consistent backup naming
+        # Always use normalized target directory name: "EDMC-PlanetPOI"
+        # This ensures plugin has correct name regardless of what it was called before
         import re
         plugin_basename = os.path.basename(Release.plugin_dir)
-        # Remove version suffix if present (e.g., "EDMC-PlanetPOI-1.7.3" -> "EDMC-PlanetPOI")
-        # Match pattern: EDMC-PlanetPOI followed by dash and version number (with optional 'v' prefix)
-        version_pattern = re.compile(r'^(EDMC-PlanetPOI)-v?\d+\.\d+\.\d+$', re.IGNORECASE)
-        if version_pattern.match(plugin_basename):
-            normalized_basename = "EDMC-PlanetPOI"
-            safe_log('debug', f"Detected versioned plugin directory: {plugin_basename} -> {normalized_basename}")
-        else:
-            normalized_basename = plugin_basename
+        plugins_parent_dir = os.path.dirname(Release.plugin_dir)
         
+        # Target directory should always be "EDMC-PlanetPOI"
+        target_plugin_dir = os.path.join(plugins_parent_dir, "EDMC-PlanetPOI")
+        safe_log('debug', f"Target plugin directory: {target_plugin_dir}")
+        
+        # Check if current plugin directory has wrong name
+        if Release.plugin_dir != target_plugin_dir:
+            safe_log('warning', f"Plugin has wrong name: {plugin_basename} (should be EDMC-PlanetPOI)")
+        
+        # Create backup of current plugin directory with old version number and .disabled suffix
+        # This prevents EDMC from loading it as a duplicate plugin
         old_version = ClientVersion.version()
         backup_dir = os.path.join(
-            os.path.dirname(Release.plugin_dir),
-            f"{normalized_basename}.{old_version}.disabled"
+            plugins_parent_dir,
+            f"EDMC-PlanetPOI.{old_version}.disabled"
         )
         safe_log('debug', f"Creating backup with .disabled suffix: {backup_dir}")
-        safe_log('debug', f"Original dir: {Release.plugin_dir}, normalized: {normalized_basename}")
         
         try:
             # Remove old backup if it exists
             if os.path.exists(backup_dir):
+                safe_log('debug', f"Removing existing backup: {backup_dir}")
                 shutil.rmtree(backup_dir)
             
             # Backup current directory
             shutil.copytree(Release.plugin_dir, backup_dir)
             safe_log('debug', "Backup created successfully")
             
-            # Copy new files to current plugin directory (overwrite, except poi.json)
-            safe_log('debug', f"Copying new files to {Release.plugin_dir}")
-            for item in os.listdir(new_plugin_dir):
-                src = os.path.join(new_plugin_dir, item)
-                dst = os.path.join(Release.plugin_dir, item)
-                
-                # NEVER overwrite poi.json - user data must be preserved
-                if item == "poi.json" and os.path.exists(dst):
-                    safe_log('info', f"Skipping poi.json - preserving existing user data")
-                    continue
-                
-                if os.path.isdir(src):
-                    if os.path.exists(dst):
-                        shutil.rmtree(dst)
-                    shutil.copytree(src, dst)
-                else:
-                    shutil.copy2(src, dst)
+            # Remove old plugin directory (even if it has the wrong name)
+            safe_log('debug', f"Removing old plugin directory: {Release.plugin_dir}")
+            shutil.rmtree(Release.plugin_dir)
+            safe_log('debug', "Old plugin directory removed")
             
-            safe_log('debug', "Files copied successfully")
+            # Rename temp directory to correct target name
+            safe_log('debug', f"Renaming {new_plugin_dir} to {target_plugin_dir}")
+            os.rename(new_plugin_dir, target_plugin_dir)
+            safe_log('debug', "New version installed with correct directory name")
             
-            # Remove temporary download directory
-            shutil.rmtree(new_plugin_dir)
-            safe_log('debug', "Temporary directory removed")
+            # Restore poi.json from backup if it exists
+            backup_poi = os.path.join(backup_dir, "poi.json")
+            target_poi = os.path.join(target_plugin_dir, "poi.json")
+            if os.path.exists(backup_poi):
+                safe_log('info', "Restoring poi.json from backup to preserve user data")
+                shutil.copy2(backup_poi, target_poi)
+                safe_log('debug', "poi.json restored successfully")
+            
+            safe_log('debug', "Installation complete")
             
             # Auto-remove old backups if enabled
             auto_remove_str = config.get_str("planetpoi_auto_remove_backups")
@@ -470,16 +468,26 @@ class Release(Frame):
             return True
             
         except Exception as e:
-            safe_log('error', f"Failed to copy files: {e}")
+            safe_log('error', f"Failed to install update: {e}")
             # Try to restore from backup
             if os.path.exists(backup_dir):
                 safe_log('info', "Attempting to restore from backup")
                 try:
-                    shutil.rmtree(Release.plugin_dir)
+                    # Remove failed installation if it exists
+                    if os.path.exists(target_plugin_dir):
+                        shutil.rmtree(target_plugin_dir)
+                    # Restore from backup
                     shutil.copytree(backup_dir, Release.plugin_dir)
                     safe_log('info', "Restored from backup successfully")
                 except Exception as restore_error:
                     safe_log('error', f"Failed to restore from backup: {restore_error}")
+            
+            # Clean up temp directory if it still exists
+            if os.path.exists(new_plugin_dir):
+                try:
+                    shutil.rmtree(new_plugin_dir)
+                except:
+                    pass
             
             return False
 
@@ -488,21 +496,13 @@ class Release(Frame):
         try:
             import re
             plugins_dir = os.path.dirname(Release.plugin_dir)
-            plugin_basename = os.path.basename(Release.plugin_dir)
-            
-            # Normalize basename (remove version suffix if present)
-            version_pattern = re.compile(r'^(EDMC-PlanetPOI)-v?\d+\.\d+\.\d+$', re.IGNORECASE)
-            if version_pattern.match(plugin_basename):
-                normalized_basename = "EDMC-PlanetPOI"
-            else:
-                normalized_basename = plugin_basename
             
             safe_log('debug', f"Looking for old backups in {plugins_dir}")
-            safe_log('debug', f"Searching for pattern: {normalized_basename}.*.disabled")
+            safe_log('debug', f"Searching for pattern: EDMC-PlanetPOI.*.disabled")
             
             for item in os.listdir(plugins_dir):
                 # Match pattern: EDMC-PlanetPOI.X.Y.Z.disabled
-                if item.startswith(normalized_basename + ".") and item.endswith(".disabled"):
+                if item.startswith("EDMC-PlanetPOI.") and item.endswith(".disabled"):
                     backup_path = os.path.join(plugins_dir, item)
                     safe_log('info', f"Removing old backup: {backup_path}")
                     try:
