@@ -51,7 +51,7 @@ class HeadingGuidance:
         self.on_course_threshold = on_course_threshold  # Degrees tolerance for being "on course"
         self.max_deviation = 90          # Maximum measured deviation (degrees)
         
-        self.ttl = 2  # Time to live in seconds (update frequently)
+        self.ttl = 5  # Time to live in seconds - longer TTL reduces flickering
     
     def update(self, current_heading, target_heading):
         """
@@ -67,7 +67,7 @@ class HeadingGuidance:
         # Calculate shortest angular deviation (-180 to +180)
         deviation = self._calculate_deviation(current_heading, target_heading)
         
-        # Clear old arrows
+        # Clear old arrows first
         self._clear_arrows()
         
         # If almost on course - show circle in center
@@ -142,6 +142,8 @@ class HeadingGuidance:
                     2,
                     self.ttl
                 )
+        
+        # Don't clear after drawing - checkmark stays visible
     
     def _calculate_deviation(self, current, target):
         """
@@ -342,7 +344,7 @@ class HeadingGuidance:
     
     def _clear_arrows(self):
         """
-        Clears all arrows and checkmarks by setting TTL to 0
+        Clears all arrows, circles and checkmarks by setting TTL to 0
         """
         # Clear arrows
         self.overlay.send_message("heading-arrow-shaft", "", "", 0, 0, 0)
