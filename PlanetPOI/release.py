@@ -26,12 +26,19 @@ import logging
 from config import appname
 
 plugin_name = os.path.basename(os.path.dirname(__file__))
-logger = logging.getLogger(f"{appname}.{plugin_name}")
+
+# Use print-based logging to avoid EDMC logger format incompatibilities
+def safe_log(level, message):
+    """Safe logging wrapper that avoids EDMC format incompatibilities"""
+    # Use print to stderr instead of logger to avoid osthreadid formatting issues
+    import sys
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] PlanetPOI {level.upper()}: {message}", file=sys.stderr)
 
 
 class ClientVersion:
     """Version information for the plugin"""
-    ver = "1.7.3"  # Update this with each release
+    ver = "1.7.2"  # Update this with each release
     client_version = f"EDMC-PlanetPOI.{ver}"
 
     @classmethod
@@ -72,7 +79,7 @@ class ReleaseLink(HyperlinkLabel):
             self.resized = False
 
         if not self.resized:
-            logger.debug("Release widget resize")
+            safe_log('debug', "Release widget resize")
             self.resized = True
             self.configure(wraplength=event.width - 2)
 
@@ -85,7 +92,7 @@ class ReleaseThread(threading.Thread):
         self.release = release
 
     def run(self):
-        logger.debug("Release: UpdateThread")
+        safe_log('debug', "Release: UpdateThread")
         self.release.release_pull()
 
 
@@ -93,6 +100,7 @@ class Release(Frame):
     """Main release management class"""
     
     plugin_dir = None
+    installed = False  # Class variable to prevent duplicate installs
     
     def __init__(self, parent, release, gridrow):
         """Initialize the Release frame"""
@@ -102,13 +110,12 @@ class Release(Frame):
 
         Frame.__init__(self, parent)
 
-        self.installed = False
-
         self.auto = tk.IntVar(value=config.get_int("PlanetPOI_AutoUpdate", default=1))
-        self.rmbackup = tk.IntVar(value=config.get_int("PlanetPOI_RemoveBackup", default=0))
 
         self.columnconfigure(1, weight=1)
+        # Start hidden - only show if update is needed
         self.grid(row=gridrow, column=0, sticky="NSEW", columnspan=2)
+        self.grid_remove()  # Hide by default
 
         self.label = tk.Label(self, text="Release:")
         self.label.grid(row=0, column=0, sticky=sticky)
@@ -127,26 +134,6 @@ class Release(Frame):
 
         self.bind("<<ReleaseUpdate>>", self.release_update)
 
-        # Remove backup directory if configured
-        if (
-            self.rmbackup.get() == 1
-            and config.get_str("PlanetPOI_RemoveBackup")
-            and config.get_str("PlanetPOI_RemoveBackup") != "None"
-        ):
-            delete_dir = config.get_str("PlanetPOI_RemoveBackup")
-            logger.debug(f"PlanetPOI_RemoveBackup {delete_dir}")
-            
-            config.set("PlanetPOI_RemoveBackup", "None")
-            
-            if os.path.exists(delete_dir):
-                try:
-                    shutil.rmtree(delete_dir)
-                    logger.debug(f"Successfully deleted {delete_dir}")
-                except Exception as e:
-                    logger.error(f"Failed to delete {delete_dir}: {str(e)}")
-            else:
-                logger.debug(f"Directory {delete_dir} does not exist, skipping deletion")
-
         # Trigger update after Tk main loop is running
         self.after_idle(self.update, None)
 
@@ -160,7 +147,7 @@ class Release(Frame):
             major, minor, patch = version.lstrip('v').split(".")
             return (int(major) * 1000000) + (int(minor) * 1000) + int(patch)
         except:
-            logger.error(f"Failed to parse version: {version}")
+            safe_log('error', f"Failed to parse version: {version}")
             return 0
 
     def release_thread(self):
@@ -180,49 +167,60 @@ class Release(Frame):
             )
             
             if not r.status_code == requests.codes.ok:
-                logger.error("Error fetching release from GitHub")
-                logger.error(f"Status code: {r.status_code}")
-                logger.error(r.text)
+                safe_log('error', "Error fetching release from GitHub")
+                safe_log('error', f"Status code: {r.status_code}")
+                safe_log('error', r.text)
             else:
                 self.latest = r.json()
-                logger.debug("Latest release downloaded")
+                safe_log('debug', "Latest release downloaded")
                 if not config.shutting_down:
                     self.after_idle(lambda: self.event_generate("<<ReleaseUpdate>>", when="tail"))
         except Exception as e:
-            logger.error(f"Failed to check for updates: {str(e)}")
+            safe_log('error', f"Failed to check for updates: {str(e)}")
 
     def release_update(self, event):
         """Handle release update event"""
-        if self.installed:
+        if Release.installed:
+            safe_log('debug', "Already installed, skipping")
             return
             
         if not self.latest:
-            logger.debug("Latest release is empty")
+            safe_log('debug', "Latest release is empty")
             return
 
-        logger.debug("Processing latest release")
+        safe_log('debug', "Processing latest release")
+        safe_log('debug', f"Current version string: {self.release}")
+        safe_log('debug', f"Latest tag_name: {self.latest.get('tag_name')}")
 
         current = self.version2number(self.release)
         release = self.version2number(self.latest.get("tag_name", "0.0.0"))
+
+        safe_log('debug', f"Current version number: {current}")
+        safe_log('debug', f"Latest version number: {release}")
 
         self.hyperlink["url"] = self.latest.get("html_url", DEFAULT_URL)
         self.hyperlink["text"] = f"EDMC-PlanetPOI: {self.latest.get('tag_name')}"
 
         if current == release:
             # Current version, hide the release info
+            safe_log('debug', "Same version, hiding widget")
             self.grid_remove()
         elif current > release:
             # Experimental/dev version - hide the widget instead of showing experimental message
+            safe_log('debug', "Running newer version than release, hiding widget")
             self.grid_remove()
         else:
             # New version available
+            safe_log('info', f"New version available: {self.latest.get('tag_name')}")
             if self.auto.get() == 1:
                 # Auto-update enabled - install silently
+                safe_log('info', "Auto-update enabled, starting installation")
                 self.installer()
                 # Don't show any message - new version will show on next EDMC restart
                 self.grid_remove()
             else:
                 # Manual update
+                safe_log('info', "Auto-update disabled, showing manual upgrade prompt")
                 self.hyperlink["text"] = f"Please Upgrade to {self.latest.get('tag_name')}"
                 self.button.grid()
                 self.grid()
@@ -230,7 +228,6 @@ class Release(Frame):
     def plugin_prefs(self, parent, cmdr, is_beta, gridrow):
         """Create preferences UI"""
         self.auto = tk.IntVar(value=config.get_int("PlanetPOI_AutoUpdate", default=1))
-        self.rmbackup = tk.IntVar(value=config.get_int("PlanetPOI_RemoveBackup", default=0))
 
         frame = nb.Frame(parent)
         frame.columnconfigure(2, weight=1)
@@ -242,18 +239,16 @@ class Release(Frame):
             variable=self.auto
         ).grid(row=0, column=0, sticky="NW")
         
-        nb.Checkbutton(
+        nb.Label(
             frame, 
-            text="Remove backup after update", 
-            variable=self.rmbackup
-        ).grid(row=0, column=1, sticky="NW")
+            text=f"(v{ClientVersion.version()})"
+        ).grid(row=0, column=1, sticky="NW", padx=(5, 0))
 
         return frame
 
     def prefs_changed(self, cmdr, is_beta):
         """Save preferences"""
         config.set("PlanetPOI_AutoUpdate", self.auto.get())
-        config.set("PlanetPOI_RemoveBackup", self.rmbackup.get())
 
     def click_installer(self):
         """Handle manual install button click"""
@@ -269,35 +264,36 @@ class Release(Frame):
         tag_name = self.latest.get("tag_name")
         
         if not tag_name:
-            logger.error("No tag_name in latest release")
+            safe_log('error', "No tag_name in latest release")
             self.hyperlink["text"] = "Upgrade failed - no version info"
             return False
 
-        logger.info(f"Installing {tag_name}")
-        logger.debug(f"Current plugin_dir: {Release.plugin_dir}")
-        logger.debug(f"Parent dir: {os.path.dirname(Release.plugin_dir)}")
+        safe_log('info', f"Installing {tag_name}")
+        safe_log('debug', f"Current plugin_dir: {Release.plugin_dir}")
+        safe_log('debug', f"Parent dir: {os.path.dirname(Release.plugin_dir)}")
 
+        # Always use the same directory name to avoid duplicates
         new_plugin_dir = os.path.join(
             os.path.dirname(Release.plugin_dir), 
-            f"EDMC-PlanetPOI-{tag_name}"
+            "EDMC-PlanetPOI-temp"
         )
         
-        logger.debug(f"Expected new plugin dir: {new_plugin_dir}")
+        safe_log('debug', f"Temporary download dir: {new_plugin_dir}")
 
         # Check if already downloaded (clean up if exists)
         if os.path.isdir(new_plugin_dir):
-            logger.warning(f"Directory already exists, removing: {new_plugin_dir}")
+            safe_log('warning', f"Directory already exists, removing: {new_plugin_dir}")
             try:
                 shutil.rmtree(new_plugin_dir)
             except Exception as e:
-                logger.error(f"Failed to remove existing directory: {e}")
+                safe_log('error', f"Failed to remove existing directory: {e}")
                 self.hyperlink["text"] = "Upgrade failed - cannot remove old download"
                 return False
 
         try:
-            logger.debug("Downloading new version...")
+            safe_log('debug', "Downloading new version...")
             download_url = f"https://github.com/bbbkada/EDMC-PlanetPOI/archive/refs/tags/{tag_name}.zip"
-            logger.debug(f"Download URL: {download_url}")
+            safe_log('debug', f"Download URL: {download_url}")
             
             download = requests.get(
                 download_url,
@@ -306,69 +302,101 @@ class Release(Frame):
             )
             
             if not download.status_code == requests.codes.ok:
-                logger.error(f"Download failed with status {download.status_code}")
-                logger.error(f"Response: {download.text[:500]}")
+                safe_log('error', f"Download failed with status {download.status_code}")
+                safe_log('error', f"Response: {download.text[:500]}")
                 self.hyperlink["text"] = f"Upgrade failed - HTTP {download.status_code}"
                 return False
 
-            logger.debug(f"Downloaded {len(download.content)} bytes")
+            safe_log('debug', f"Downloaded {len(download.content)} bytes")
             
             # Extract zip file
-            logger.debug("Extracting ZIP file...")
+            safe_log('debug', "Extracting ZIP file...")
             z = zipfile.ZipFile(BytesIO(download.content))
             extract_to = os.path.dirname(Release.plugin_dir)
-            logger.debug(f"Extracting to: {extract_to}")
-            logger.debug(f"ZIP contains: {z.namelist()[:5]}")  # Show first 5 files
+            safe_log('debug', f"Extracting to: {extract_to}")
+            safe_log('debug', f"ZIP contains: {z.namelist()[:5]}")  # Show first 5 files
             z.extractall(extract_to)
-            logger.debug("ZIP extraction complete")
+            safe_log('debug', "ZIP extraction complete")
             
         except Exception as e:
-            logger.error(f"Download/extract failed: {str(e)}")
-            logger.exception("Full traceback:")
+            safe_log('error', f"Download/extract failed: {str(e)}")
             self.hyperlink["text"] = f"Upgrade failed - {str(e)}"
             return False
 
         # Verify extracted directory exists
         if not os.path.isdir(new_plugin_dir):
-            logger.error(f"Extracted directory not found: {new_plugin_dir}")
+            safe_log('error', f"Extracted directory not found: {new_plugin_dir}")
             # List what actually got extracted
             parent_dir = os.path.dirname(Release.plugin_dir)
-            logger.error(f"Contents of {parent_dir}:")
+            safe_log('error', f"Contents of {parent_dir}:")
             try:
                 for item in os.listdir(parent_dir):
-                    logger.error(f"  - {item}")
+                    safe_log('error', f"  - {item}")
             except Exception as e:
-                logger.error(f"Failed to list directory: {e}")
+                safe_log('error', f"Failed to list directory: {e}")
             self.hyperlink["text"] = "Upgrade failed - extracted files not found"
             return False
         
-        logger.debug(f"Verified new plugin directory exists: {new_plugin_dir}")
+        safe_log('debug', f"Verified temporary directory exists: {new_plugin_dir}")
 
-        # Disable current plugin
+        # Create backup of current plugin directory
+        backup_dir = f"{Release.plugin_dir}.backup"
+        safe_log('debug', f"Creating backup: {backup_dir}")
+        
         try:
-            disabled_dir = f"{Release.plugin_dir}.disabled"
-            logger.debug(f"Renaming {Release.plugin_dir} to {disabled_dir}")
-            os.rename(Release.plugin_dir, disabled_dir)
-            logger.debug("Rename successful")
+            # Remove old backup if it exists
+            if os.path.exists(backup_dir):
+                shutil.rmtree(backup_dir)
+            
+            # Backup current directory
+            shutil.copytree(Release.plugin_dir, backup_dir)
+            safe_log('debug', "Backup created successfully")
+            
+            # Copy new files to current plugin directory (overwrite)
+            safe_log('debug', f"Copying new files to {Release.plugin_dir}")
+            for item in os.listdir(new_plugin_dir):
+                src = os.path.join(new_plugin_dir, item)
+                dst = os.path.join(Release.plugin_dir, item)
+                
+                if os.path.isdir(src):
+                    if os.path.exists(dst):
+                        shutil.rmtree(dst)
+                    shutil.copytree(src, dst)
+                else:
+                    shutil.copy2(src, dst)
+            
+            safe_log('debug', "Files copied successfully")
+            
+            # Remove temporary download directory
+            shutil.rmtree(new_plugin_dir)
+            safe_log('debug', "Temporary directory removed")
+            
+            # Remove the backup directory immediately after successful update
+            if os.path.exists(backup_dir):
+                try:
+                    shutil.rmtree(backup_dir)
+                    safe_log('debug', f"Backup directory {backup_dir} removed")
+                except Exception as e:
+                    safe_log('warning', f"Could not remove backup directory: {e}")
+            
+            safe_log('info', f"Upgrade to {tag_name} complete - please restart EDMC")
+            Release.installed = True
+            return True
+            
         except Exception as e:
-            logger.error(f"Failed to disable current plugin: {str(e)}")
-            logger.exception("Full traceback:")
+            safe_log('error', f"Failed to copy files: {e}")
+            # Try to restore from backup
+            if os.path.exists(backup_dir):
+                safe_log('info', "Attempting to restore from backup")
+                try:
+                    shutil.rmtree(Release.plugin_dir)
+                    shutil.copytree(backup_dir, Release.plugin_dir)
+                    safe_log('info', "Restored from backup successfully")
+                except Exception as restore_error:
+                    safe_log('error', f"Failed to restore from backup: {restore_error}")
+            
             self.hyperlink["text"] = f"Upgrade failed - {str(e)}"
-            try:
-                shutil.rmtree(new_plugin_dir)
-            except:
-                pass
             return False
-
-        # Mark backup for removal if configured
-        if self.rmbackup.get() == 1:
-            config.set("PlanetPOI_RemoveBackup", disabled_dir)
-
-        logger.info("Upgrade complete")
-        Release.plugin_dir = new_plugin_dir
-        self.installed = True
-
-        return True
 
     @classmethod
     def get_auto(cls):
