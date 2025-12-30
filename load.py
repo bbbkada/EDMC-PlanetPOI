@@ -13,6 +13,8 @@ import urllib.parse
 import overlay  # overlay.py i samma katalog
 from AutoCompleter import AutoCompleter
 from heading_guidance import HeadingGuidance
+import release
+from release import ClientVersion, Release
 
 # Import from new modules
 from calculations import (
@@ -33,6 +35,9 @@ plugin_tl = functools.partial(l10n.translations.tl, context=__file__)
 PLUGIN_PARENT = None
 PLUGIN_FRAME = None  # Persistent frame for dynamic updates
 OVERLAY_INFO_LABEL = None  # Reference to overlay info label for updates
+
+# Release management
+RELEASE_FRAME = None  # Reference to release notification frame
 
 # Guidance section widgets for dynamic updates
 GUIDANCE_FRAME = None
@@ -174,7 +179,11 @@ def import_pois_from_file(parent_frame):
         print(f"PPOI: Error importing POIs: {ex}")
 
 def plugin_start3(plugin_dir: str) -> str:
-    global ALT_VAR, ROWS_VAR, LEFT_VAR, SHOW_GUI_INFO_VAR, HEADING_GUIDANCE_VAR, GUIDANCE_THRESHOLD_VAR, GUIDANCE_DISTANCE_VAR, ALL_POIS, CURRENT_SYSTEM, last_lat, last_lon, last_body, heading_guidance
+    global ALT_VAR, ROWS_VAR, LEFT_VAR, SHOW_GUI_INFO_VAR, HEADING_GUIDANCE_VAR, GUIDANCE_THRESHOLD_VAR, GUIDANCE_DISTANCE_VAR, ALL_POIS, CURRENT_SYSTEM, last_lat, last_lon, last_body, heading_guidance, RELEASE_FRAME
+    
+    # Initialize release management
+    Release.plugin_start(plugin_dir)
+    
     # set default values if no config exists
     alt_val = config.get_int(ALT_KEY)
     ALT_VAR = tk.BooleanVar(value=bool(alt_val))
@@ -984,12 +993,20 @@ def build_plugin_content(frame):
 
 def plugin_app(parent, cmdr=None, is_beta=None):
     """Create the persistent plugin frame and return it."""
-    global PLUGIN_PARENT, PLUGIN_FRAME
+    global PLUGIN_PARENT, PLUGIN_FRAME, RELEASE_FRAME
     PLUGIN_PARENT = parent
     
+    # Create container frame for both release widget and plugin content
+    container_frame = tk.Frame(parent)
+    container_frame.grid(row=0, column=0, columnspan=2, sticky="nsew")
+    
+    # Add release notification widget at the top
+    RELEASE_FRAME = Release(container_frame, ClientVersion.version(), 0)
+    theme.update(RELEASE_FRAME)
+    
     # Create persistent frame - use tk.Frame, let theme handle background
-    PLUGIN_FRAME = tk.Frame(parent, highlightthickness=1)
-    PLUGIN_FRAME.grid(row=0, column=0, columnspan=2, sticky="nsew")
+    PLUGIN_FRAME = tk.Frame(container_frame, highlightthickness=1)
+    PLUGIN_FRAME.grid(row=1, column=0, columnspan=2, sticky="nsew")
     
     # Build initial content
     build_plugin_content(PLUGIN_FRAME)
@@ -998,14 +1015,23 @@ def plugin_app(parent, cmdr=None, is_beta=None):
     theme.update(PLUGIN_FRAME)
     theme.update(parent)
     
-    return PLUGIN_FRAME
+    return container_frame
 
 
 
 def plugin_prefs(parent, cmdr, is_beta):
     outer_frame = nb.Frame(parent)
+    outer_frame.columnconfigure(0, weight=1)
+    
+    # Add release update settings at the top (row 0)
+    if RELEASE_FRAME:
+        RELEASE_FRAME.plugin_prefs(outer_frame, cmdr, is_beta, 0)
+    
+    # Add main plugin settings below (row 1)
     scroll_frame = create_scrolled_frame(outer_frame)
+    scroll_frame.grid(row=1, column=0, sticky="NSEW")
     build_plugin_ui(scroll_frame)
+    
     return outer_frame
 
 # Delegate to gui_builder module
@@ -1233,7 +1259,12 @@ def save_current_poi(frame):
             pass
 
 def prefs_changed(cmdr, is_beta):
-    global ALT_VAR, ROWS_VAR, LEFT_VAR, SHOW_GUI_INFO_VAR, HEADING_GUIDANCE_VAR, GUIDANCE_THRESHOLD_VAR, GUIDANCE_DISTANCE_VAR, heading_guidance, POI_REFS
+    global ALT_VAR, ROWS_VAR, LEFT_VAR, SHOW_GUI_INFO_VAR, HEADING_GUIDANCE_VAR, GUIDANCE_THRESHOLD_VAR, GUIDANCE_DISTANCE_VAR, heading_guidance, POI_REFS, RELEASE_FRAME
+    
+    # Save release settings
+    if RELEASE_FRAME:
+        RELEASE_FRAME.prefs_changed(cmdr, is_beta)
+    
     # Update active status for all POIs using POI_REFS (matches order of POI_VARS)
     for i, var in enumerate(POI_VARS):
         if i < len(POI_REFS):
