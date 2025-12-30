@@ -39,7 +39,7 @@ def safe_log(level, message):
 
 class ClientVersion:
     """Version information for the plugin"""
-    ver = "1.7.8"  # Update this with each release
+    ver = "1.7.9"  # Update this with each release
     client_version = f"EDMC-PlanetPOI.{ver}"
 
     @classmethod
