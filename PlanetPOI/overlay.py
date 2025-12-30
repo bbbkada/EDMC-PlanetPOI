@@ -165,7 +165,7 @@ def show_message(message_id, text, color="#ff7100", x=2, y=2, size=8, font_weigh
 
 
 def clear_all_poi_rows():
-    global OVERLAY_MAX_ROWS, OVERLAY_LEFT_MARGIN
+    global OVERLAY_MAX_ROWS, OVERLAY_LEFT_MARGIN, overlay
     """
     Clears all POI rows in overlay.
     """
@@ -173,15 +173,15 @@ def clear_all_poi_rows():
         y_pos = ROW_Y_START + idx * ROW_Y_STEP
         message_id = f"poi_{idx}"
         if ensure_overlay():
-         this.overlay.send_message(
-            msgid=message_id,
-            text="",
-            color="#000000",
-            x=OVERLAY_LEFT_MARGIN,
-            y=y_pos,
-            ttl=8,  # TTL = 30 seconds (keeps overlay visible)
-            size="large"
-        )
+            overlay.send_message(
+                msgid=message_id,
+                text="",
+                color="#000000",
+                x=OVERLAY_LEFT_MARGIN,
+                y=y_pos,
+                ttl=8,  # TTL = 30 seconds (keeps overlay visible)
+                size="large"
+            )
 
 def ensure_overlay():
     global overlay, overlay_available, _connection_attempted
