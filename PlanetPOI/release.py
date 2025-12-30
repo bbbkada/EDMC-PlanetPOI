@@ -31,7 +31,7 @@ logger = logging.getLogger(f"{appname}.{plugin_name}")
 
 class ClientVersion:
     """Version information for the plugin"""
-    ver = "1.7.2"  # Update this with each release
+    ver = "1.7.3"  # Update this with each release
     client_version = f"EDMC-PlanetPOI.{ver}"
 
     @classmethod
@@ -217,19 +217,15 @@ class Release(Frame):
         else:
             # New version available
             if self.auto.get() == 1:
-                # Auto-update enabled
-                self.hyperlink["text"] = f"Updating to {self.latest.get('tag_name')}..."
-                
-                if self.installer():
-                    self.hyperlink["text"] = f"Release {self.latest.get('tag_name')} Installed - Please Restart EDMC"
-                else:
-                    self.hyperlink["text"] = f"Release {self.latest.get('tag_name')} Upgrade Failed"
+                # Auto-update enabled - install silently
+                self.installer()
+                # Don't show any message - new version will show on next EDMC restart
+                self.grid_remove()
             else:
                 # Manual update
                 self.hyperlink["text"] = f"Please Upgrade to {self.latest.get('tag_name')}"
                 self.button.grid()
-            
-            self.grid()
+                self.grid()
 
     def plugin_prefs(self, parent, cmdr, is_beta, gridrow):
         """Create preferences UI"""
@@ -274,51 +270,90 @@ class Release(Frame):
         
         if not tag_name:
             logger.error("No tag_name in latest release")
+            self.hyperlink["text"] = "Upgrade failed - no version info"
             return False
 
         logger.info(f"Installing {tag_name}")
+        logger.debug(f"Current plugin_dir: {Release.plugin_dir}")
+        logger.debug(f"Parent dir: {os.path.dirname(Release.plugin_dir)}")
 
         new_plugin_dir = os.path.join(
             os.path.dirname(Release.plugin_dir), 
             f"EDMC-PlanetPOI-{tag_name}"
         )
+        
+        logger.debug(f"Expected new plugin dir: {new_plugin_dir}")
 
-        # Check if already downloaded
+        # Check if already downloaded (clean up if exists)
         if os.path.isdir(new_plugin_dir):
-            logger.error(f"Download already exists: {new_plugin_dir}")
-            plug.show_error("PlanetPOI upgrade failed - directory exists")
-            return False
+            logger.warning(f"Directory already exists, removing: {new_plugin_dir}")
+            try:
+                shutil.rmtree(new_plugin_dir)
+            except Exception as e:
+                logger.error(f"Failed to remove existing directory: {e}")
+                self.hyperlink["text"] = "Upgrade failed - cannot remove old download"
+                return False
 
         try:
-            logger.debug("Downloading new version")
+            logger.debug("Downloading new version...")
+            download_url = f"https://github.com/bbbkada/EDMC-PlanetPOI/archive/refs/tags/{tag_name}.zip"
+            logger.debug(f"Download URL: {download_url}")
+            
             download = requests.get(
-                f"https://github.com/bbbkada/EDMC-PlanetPOI/archive/{tag_name}.zip",
+                download_url,
                 stream=True,
                 timeout=30
             )
             
             if not download.status_code == requests.codes.ok:
                 logger.error(f"Download failed with status {download.status_code}")
-                plug.show_error("PlanetPOI upgrade failed - download error")
+                logger.error(f"Response: {download.text[:500]}")
+                self.hyperlink["text"] = f"Upgrade failed - HTTP {download.status_code}"
                 return False
 
+            logger.debug(f"Downloaded {len(download.content)} bytes")
+            
             # Extract zip file
+            logger.debug("Extracting ZIP file...")
             z = zipfile.ZipFile(BytesIO(download.content))
-            z.extractall(os.path.dirname(Release.plugin_dir))
+            extract_to = os.path.dirname(Release.plugin_dir)
+            logger.debug(f"Extracting to: {extract_to}")
+            logger.debug(f"ZIP contains: {z.namelist()[:5]}")  # Show first 5 files
+            z.extractall(extract_to)
+            logger.debug("ZIP extraction complete")
             
         except Exception as e:
             logger.error(f"Download/extract failed: {str(e)}")
-            plug.show_error("PlanetPOI upgrade failed")
+            logger.exception("Full traceback:")
+            self.hyperlink["text"] = f"Upgrade failed - {str(e)}"
             return False
+
+        # Verify extracted directory exists
+        if not os.path.isdir(new_plugin_dir):
+            logger.error(f"Extracted directory not found: {new_plugin_dir}")
+            # List what actually got extracted
+            parent_dir = os.path.dirname(Release.plugin_dir)
+            logger.error(f"Contents of {parent_dir}:")
+            try:
+                for item in os.listdir(parent_dir):
+                    logger.error(f"  - {item}")
+            except Exception as e:
+                logger.error(f"Failed to list directory: {e}")
+            self.hyperlink["text"] = "Upgrade failed - extracted files not found"
+            return False
+        
+        logger.debug(f"Verified new plugin directory exists: {new_plugin_dir}")
 
         # Disable current plugin
         try:
             disabled_dir = f"{Release.plugin_dir}.disabled"
+            logger.debug(f"Renaming {Release.plugin_dir} to {disabled_dir}")
             os.rename(Release.plugin_dir, disabled_dir)
-            logger.debug(f"Renamed {Release.plugin_dir} to {disabled_dir}")
+            logger.debug("Rename successful")
         except Exception as e:
             logger.error(f"Failed to disable current plugin: {str(e)}")
-            plug.show_error("PlanetPOI upgrade failed")
+            logger.exception("Full traceback:")
+            self.hyperlink["text"] = f"Upgrade failed - {str(e)}"
             try:
                 shutil.rmtree(new_plugin_dir)
             except:
