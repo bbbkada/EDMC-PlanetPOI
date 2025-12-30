@@ -140,6 +140,11 @@ class Release(Frame):
     def update(self, event):
         """Start update check"""
         self.release_thread()
+    
+    def start_update_check(self):
+        """Public method to start update check - can be called from load.py"""
+        # Delay by 2 seconds to avoid blocking startup
+        self.after(2000, lambda: self.update(None))
 
     def version2number(self, version):
         """Convert version string to comparable number"""

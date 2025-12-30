@@ -193,6 +193,14 @@ def plugin_start3(plugin_dir: str) -> str:
     Release.plugin_start(plugin_dir)
     print(f"[PPOI TIMING] Release.plugin_start: {time.time() - start_time:.3f}s")
     
+    # Create Release instance for update checking (will be shown in GUI later)
+    # The Release instance automatically starts update check after 2 seconds
+    if not RELEASE_FRAME:
+        # Create a temporary parent frame (will be replaced by plugin_app's frame)
+        temp_parent = tk.Frame()
+        RELEASE_FRAME = Release(temp_parent, ClientVersion.version(), 0)
+    print(f"[PPOI TIMING] Release instance created (update check will start automatically): {time.time() - start_time:.3f}s")
+    
     # set default values if no config exists
     alt_val = config.get_int(ALT_KEY)
     ALT_VAR = tk.BooleanVar(value=bool(alt_val))
@@ -1055,12 +1063,13 @@ def plugin_prefs(parent, cmdr, is_beta):
     outer_frame.columnconfigure(0, weight=1)
     outer_frame.rowconfigure(1, weight=1)  # Make scroll container expand
     
-    # Always create/use Release instance for settings
+    # RELEASE_FRAME should already be created in plugin_start3
+    # If not (shouldn't happen in normal flow), create it now
     if not RELEASE_FRAME:
-        # Create a hidden Release widget to manage version checks
         temp_container = nb.Frame(outer_frame)
         RELEASE_FRAME = Release(temp_container, ClientVersion.version(), 0)
-        RELEASE_FRAME.grid_remove()  # Never show in main GUI
+        RELEASE_FRAME.grid_remove()
+        # The Release instance automatically starts update check in __init__
     
     # Add release update settings at the top (row 0) - this will show update button if available
     RELEASE_FRAME.plugin_prefs(outer_frame, cmdr, is_beta, 0, AUTO_UPDATE_VAR, AUTO_REMOVE_BACKUPS_VAR)
