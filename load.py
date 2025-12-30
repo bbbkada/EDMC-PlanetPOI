@@ -1021,23 +1021,12 @@ def build_plugin_content(frame):
 
 def plugin_app(parent, cmdr=None, is_beta=None):
     """Create the persistent plugin frame and return it."""
-    global PLUGIN_PARENT, PLUGIN_FRAME, RELEASE_FRAME
+    global PLUGIN_PARENT, PLUGIN_FRAME
     PLUGIN_PARENT = parent
     
-    # Create container frame for both release widget and plugin content
-    container_frame = tk.Frame(parent)
-    container_frame.grid(row=0, column=0, columnspan=2, sticky="nsew")
-    
-    # Configure container to expand horizontally
-    container_frame.grid_columnconfigure(0, weight=1)
-    
-    # Add release notification widget at the top
-    RELEASE_FRAME = Release(container_frame, ClientVersion.version(), 0)
-    theme.update(RELEASE_FRAME)
-    
     # Create persistent frame - use tk.Frame, let theme handle background
-    PLUGIN_FRAME = tk.Frame(container_frame, highlightthickness=1)
-    PLUGIN_FRAME.grid(row=1, column=0, columnspan=2, sticky="nsew")
+    PLUGIN_FRAME = tk.Frame(parent, highlightthickness=1)
+    PLUGIN_FRAME.grid(row=0, column=0, columnspan=2, sticky="nsew")
     
     # Build initial content
     build_plugin_content(PLUGIN_FRAME)
@@ -1046,7 +1035,7 @@ def plugin_app(parent, cmdr=None, is_beta=None):
     theme.update(PLUGIN_FRAME)
     theme.update(parent)
     
-    return container_frame
+    return PLUGIN_FRAME
 
 
 
@@ -1056,14 +1045,14 @@ def plugin_prefs(parent, cmdr, is_beta):
     outer_frame.columnconfigure(0, weight=1)
     outer_frame.rowconfigure(1, weight=1)  # Make scroll container expand
     
-    # Ensure we have a Release instance (plugin_prefs may be called before plugin_app)
+    # Always create/use Release instance for settings
     if not RELEASE_FRAME:
-        # Create a temporary container for the Release widget
+        # Create a hidden Release widget to manage version checks
         temp_container = nb.Frame(outer_frame)
         RELEASE_FRAME = Release(temp_container, ClientVersion.version(), 0)
-        RELEASE_FRAME.grid_remove()  # Hide the release notification in prefs
+        RELEASE_FRAME.grid_remove()  # Never show in main GUI
     
-    # Add release update settings at the top (row 0)
+    # Add release update settings at the top (row 0) - this will show update button if available
     RELEASE_FRAME.plugin_prefs(outer_frame, cmdr, is_beta, 0, AUTO_UPDATE_VAR, AUTO_REMOVE_BACKUPS_VAR)
     
     # Add main plugin settings below (row 1)

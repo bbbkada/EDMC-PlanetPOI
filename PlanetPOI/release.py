@@ -38,7 +38,7 @@ def safe_log(level, message):
 
 class ClientVersion:
     """Version information for the plugin"""
-    ver = "1.7.4"  # Update this with each release
+    ver = "1.7.2"  # Update this with each release
     client_version = f"EDMC-PlanetPOI.{ver}"
 
     @classmethod
@@ -215,14 +215,8 @@ class Release(Frame):
                 # Auto-update enabled - install silently
                 safe_log('info', "Auto-update enabled, starting installation")
                 self.installer()
-                # Don't show any message - new version will show on next EDMC restart
-                self.grid_remove()
-            else:
-                # Manual update
-                safe_log('info', "Auto-update disabled, showing manual upgrade prompt")
-                self.hyperlink["text"] = f"Please Upgrade to {self.latest.get('tag_name')}"
-                self.button.grid()
-                self.grid()
+            # Always hide in main GUI - update button will show in settings instead
+            self.grid_remove()
 
     def plugin_prefs(self, parent, cmdr, is_beta, gridrow, auto_update_var, auto_remove_backups_var):
         """Create preferences UI using passed IntVars from load.py"""
@@ -242,24 +236,37 @@ class Release(Frame):
             variable=auto_remove_backups_var
         ).grid(row=0, column=1, sticky="NW", padx=(10, 0))
         
-        # Version number as hyperlink to repository, right-aligned
-        HyperlinkLabel(
+        # Version number as hyperlink to repository
+        version_link = HyperlinkLabel(
             frame,
             text=f"v{ClientVersion.version()}",
             url="https://github.com/bbbkada/EDMC-PlanetPOI",
-            anchor=tk.E
-        ).grid(row=0, column=3, sticky="NE")
+            anchor=tk.W
+        )
+        version_link.grid(row=0, column=2, sticky="NW", padx=(10, 0))
+        
+        # Update button - only shown when new version is available
+        # Check if update is available
+        if self.latest:
+            current = self.version2number(self.release)
+            release = self.version2number(self.latest.get("tag_name", "0.0.0"))
+            
+            if current < release:
+                # New version available - show update button
+                update_btn = nb.Button(
+                    frame,
+                    text=f"Update to {self.latest.get('tag_name')}",
+                    command=self.click_installer,
+                    width=18
+                )
+                update_btn.grid(row=0, column=3, sticky="NW", padx=(10, 0))
 
         return frame
 
     def click_installer(self):
         """Handle manual install button click"""
-        self.button.grid_remove()
-
-        if self.installer():
-            self.hyperlink["text"] = f"Release {self.latest.get('tag_name')} Installed - Please Restart EDMC"
-        else:
-            self.hyperlink["text"] = f"Release {self.latest.get('tag_name')} Upgrade Failed"
+        # Just run installer - no messages shown in GUI
+        self.installer()
 
     def installer(self):
         """Download and install new version"""
@@ -267,7 +274,6 @@ class Release(Frame):
         
         if not tag_name:
             safe_log('error', "No tag_name in latest release")
-            self.hyperlink["text"] = "Upgrade failed - no version info"
             return False
 
         safe_log('info', f"Installing {tag_name}")
@@ -289,7 +295,6 @@ class Release(Frame):
                 shutil.rmtree(new_plugin_dir)
             except Exception as e:
                 safe_log('error', f"Failed to remove existing directory: {e}")
-                self.hyperlink["text"] = "Upgrade failed - cannot remove old download"
                 return False
 
         try:
@@ -306,7 +311,6 @@ class Release(Frame):
             if not download.status_code == requests.codes.ok:
                 safe_log('error', f"Download failed with status {download.status_code}")
                 safe_log('error', f"Response: {download.text[:500]}")
-                self.hyperlink["text"] = f"Upgrade failed - HTTP {download.status_code}"
                 return False
 
             safe_log('debug', f"Downloaded {len(download.content)} bytes")
@@ -339,13 +343,11 @@ class Release(Frame):
             
         except Exception as e:
             safe_log('error', f"Download/extract failed: {str(e)}")
-            self.hyperlink["text"] = f"Upgrade failed - {str(e)}"
             return False
 
         # Verify extracted directory exists after rename
         if not os.path.isdir(new_plugin_dir):
             safe_log('error', f"Temporary directory not found after extraction: {new_plugin_dir}")
-            self.hyperlink["text"] = "Upgrade failed - extracted files not found"
             return False
         
         safe_log('debug', f"Verified temporary directory exists: {new_plugin_dir}")
@@ -413,7 +415,6 @@ class Release(Frame):
                 except Exception as restore_error:
                     safe_log('error', f"Failed to restore from backup: {restore_error}")
             
-            self.hyperlink["text"] = f"Upgrade failed - {str(e)}"
             return False
 
     def remove_old_backups(self):
