@@ -265,11 +265,15 @@ class Release(Frame):
         )
         version_link.grid(row=0, column=2, sticky="NE", padx=(10, 5))
         
-        # Update button - only shown when new version is available
+        # Update button - only shown when new version is available AND auto-update is disabled
         # Check if update is available - use class variable if instance variable is empty
         latest_data = self.latest if self.latest else Release.latest_release
         safe_log('debug', f"plugin_prefs called - latest_data: {latest_data}")
-        if latest_data:
+        
+        # Only show update button if auto-update is disabled
+        auto_update_enabled = auto_update_var.get() == 1
+        
+        if latest_data and not auto_update_enabled:
             current = self.version2number(self.release)
             release = self.version2number(latest_data.get("tag_name", "0.0.0"))
             safe_log('debug', f"Version check - current: {current}, release: {release}")
@@ -284,6 +288,8 @@ class Release(Frame):
                     width=18
                 )
                 update_btn.grid(row=0, column=3, sticky="NE", padx=(0, 5))
+        elif auto_update_enabled:
+            safe_log('debug', "Auto-update enabled, hiding update button")
         else:
             safe_log('debug', "No latest release data available")
 
