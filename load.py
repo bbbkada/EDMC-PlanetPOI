@@ -63,6 +63,8 @@ SHOW_GUI_INFO_KEY = "planetpoi_show_gui_info"
 HEADING_GUIDANCE_KEY = "planetpoi_heading_guidance"  # Enable/disable heading guidance
 GUIDANCE_THRESHOLD_KEY = "planetpoi_guidance_threshold"  # Degrees tolerance for "on course"
 GUIDANCE_DISTANCE_KEY = "planetpoi_guidance_distance"  # Distance in meters where guidance stops
+AUTO_UPDATE_KEY = "planetpoi_auto_update"  # Auto-update plugin
+AUTO_REMOVE_BACKUPS_KEY = "planetpoi_auto_remove_backups"  # Auto-remove old backups
 
 ALT_VAR = None
 ROWS_VAR = None
@@ -71,6 +73,8 @@ SHOW_GUI_INFO_VAR = None
 HEADING_GUIDANCE_VAR = None
 GUIDANCE_THRESHOLD_VAR = None
 GUIDANCE_DISTANCE_VAR = None
+AUTO_UPDATE_VAR = None
+AUTO_REMOVE_BACKUPS_VAR = None
 
 # Store overlay info for display in GUI
 OVERLAY_INFO_TEXT = ""
@@ -179,7 +183,7 @@ def import_pois_from_file(parent_frame):
         print(f"PPOI: Error importing POIs: {ex}")
 
 def plugin_start3(plugin_dir: str) -> str:
-    global ALT_VAR, ROWS_VAR, LEFT_VAR, SHOW_GUI_INFO_VAR, HEADING_GUIDANCE_VAR, GUIDANCE_THRESHOLD_VAR, GUIDANCE_DISTANCE_VAR, ALL_POIS, CURRENT_SYSTEM, last_lat, last_lon, last_body, heading_guidance, RELEASE_FRAME
+    global ALT_VAR, ROWS_VAR, LEFT_VAR, SHOW_GUI_INFO_VAR, HEADING_GUIDANCE_VAR, GUIDANCE_THRESHOLD_VAR, GUIDANCE_DISTANCE_VAR, AUTO_UPDATE_VAR, AUTO_REMOVE_BACKUPS_VAR, ALL_POIS, CURRENT_SYSTEM, last_lat, last_lon, last_body, heading_guidance, RELEASE_FRAME
     
     # Initialize release management
     Release.plugin_start(plugin_dir)
@@ -228,6 +232,25 @@ def plugin_start3(plugin_dir: str) -> str:
         guidance_distance_val = 2000
         config.set(GUIDANCE_DISTANCE_KEY, guidance_distance_val)
     GUIDANCE_DISTANCE_VAR = tk.IntVar(value=guidance_distance_val)
+    
+    # Auto-update settings - default enabled
+    # Store as string "0" or "1" to avoid config.get_int default behavior
+    auto_update_str = config.get_str(AUTO_UPDATE_KEY)
+    if auto_update_str == "" or auto_update_str is None:  # First run
+        auto_update_val = 1  # Enable by default
+        config.set(AUTO_UPDATE_KEY, str(auto_update_val))
+    else:
+        auto_update_val = 1 if auto_update_str == "1" else 0
+    AUTO_UPDATE_VAR = tk.IntVar(value=auto_update_val)
+    
+    # Auto-remove backups - default disabled
+    auto_remove_backups_str = config.get_str(AUTO_REMOVE_BACKUPS_KEY)
+    if auto_remove_backups_str == "" or auto_remove_backups_str is None:  # First run
+        auto_remove_backups_val = 0  # Disabled by default
+        config.set(AUTO_REMOVE_BACKUPS_KEY, str(auto_remove_backups_val))
+    else:
+        auto_remove_backups_val = 1 if auto_remove_backups_str == "1" else 0
+    AUTO_REMOVE_BACKUPS_VAR = tk.IntVar(value=auto_remove_backups_val)
    
     load_pois()  # This now calls the wrapper which updates ALL_POIS
     overlay.set_overlay_settings(ROWS_VAR.get(), LEFT_VAR.get())
@@ -367,11 +390,16 @@ def show_config_dialog(parent_frame):
     button_frame.pack(side=tk.BOTTOM, pady=(5, 15), padx=15)
     
     def close_and_refresh():
-        # Save settings to config before closing (same as prefs_changed does)
+        # Save ALL settings to config before closing (same as prefs_changed does)
         config.set(ALT_KEY, int(ALT_VAR.get()))
         config.set(ROWS_KEY, ROWS_VAR.get())
         config.set(LEFT_KEY, LEFT_VAR.get())
         config.set(SHOW_GUI_INFO_KEY, int(SHOW_GUI_INFO_VAR.get()))
+        config.set(HEADING_GUIDANCE_KEY, 1 if HEADING_GUIDANCE_VAR.get() else 0)
+        config.set(GUIDANCE_THRESHOLD_KEY, GUIDANCE_THRESHOLD_VAR.get())
+        config.set(GUIDANCE_DISTANCE_KEY, GUIDANCE_DISTANCE_VAR.get())
+        config.set(AUTO_UPDATE_KEY, str(1 if AUTO_UPDATE_VAR.get() else 0))
+        config.set(AUTO_REMOVE_BACKUPS_KEY, str(1 if AUTO_REMOVE_BACKUPS_VAR.get() else 0))
         overlay.set_overlay_settings(ROWS_VAR.get(), LEFT_VAR.get())
         
         # Regenerate overlay info text if we have position data
@@ -1023,13 +1051,20 @@ def plugin_app(parent, cmdr=None, is_beta=None):
 
 
 def plugin_prefs(parent, cmdr, is_beta):
+    global RELEASE_FRAME
     outer_frame = nb.Frame(parent)
     outer_frame.columnconfigure(0, weight=1)
     outer_frame.rowconfigure(1, weight=1)  # Make scroll container expand
     
+    # Ensure we have a Release instance (plugin_prefs may be called before plugin_app)
+    if not RELEASE_FRAME:
+        # Create a temporary container for the Release widget
+        temp_container = nb.Frame(outer_frame)
+        RELEASE_FRAME = Release(temp_container, ClientVersion.version(), 0)
+        RELEASE_FRAME.grid_remove()  # Hide the release notification in prefs
+    
     # Add release update settings at the top (row 0)
-    if RELEASE_FRAME:
-        RELEASE_FRAME.plugin_prefs(outer_frame, cmdr, is_beta, 0)
+    RELEASE_FRAME.plugin_prefs(outer_frame, cmdr, is_beta, 0, AUTO_UPDATE_VAR, AUTO_REMOVE_BACKUPS_VAR)
     
     # Add main plugin settings below (row 1)
     scroll_container = create_scrolled_frame(outer_frame)
@@ -1202,9 +1237,17 @@ def redraw_prefs(frame):
     build_plugin_ui(frame)
 
 def remove_poi_obj(poi, frame):
-    """Remove POI by object reference."""
-    if delete_item(ALL_POIS, poi):
-        redraw_prefs(frame)
+    """Remove POI by object reference with confirmation."""
+    import tkinter.messagebox as mb
+    
+    poi_name = poi.get("description", "Unnamed POI")
+    
+    if mb.askyesno(
+        plugin_tl("Delete POI"),
+        plugin_tl(f"Are you sure you want to delete this POI?\n\n{poi_name}")
+    ):
+        if delete_item(ALL_POIS, poi):
+            redraw_prefs(frame)
 
 def save_desc_obj(poi, desc_var, frame, savebtn):
     """Save description by POI object reference."""
@@ -1263,11 +1306,7 @@ def save_current_poi(frame):
             pass
 
 def prefs_changed(cmdr, is_beta):
-    global ALT_VAR, ROWS_VAR, LEFT_VAR, SHOW_GUI_INFO_VAR, HEADING_GUIDANCE_VAR, GUIDANCE_THRESHOLD_VAR, GUIDANCE_DISTANCE_VAR, heading_guidance, POI_REFS, RELEASE_FRAME
-    
-    # Save release settings
-    if RELEASE_FRAME:
-        RELEASE_FRAME.prefs_changed(cmdr, is_beta)
+    global ALT_VAR, ROWS_VAR, LEFT_VAR, SHOW_GUI_INFO_VAR, HEADING_GUIDANCE_VAR, GUIDANCE_THRESHOLD_VAR, GUIDANCE_DISTANCE_VAR, AUTO_UPDATE_VAR, AUTO_REMOVE_BACKUPS_VAR, heading_guidance, POI_REFS, RELEASE_FRAME
     
     # Update active status for all POIs using POI_REFS (matches order of POI_VARS)
     for i, var in enumerate(POI_VARS):
@@ -1280,6 +1319,9 @@ def prefs_changed(cmdr, is_beta):
     config.set(HEADING_GUIDANCE_KEY, 1 if HEADING_GUIDANCE_VAR.get() else 0)
     config.set(GUIDANCE_THRESHOLD_KEY, GUIDANCE_THRESHOLD_VAR.get())
     config.set(GUIDANCE_DISTANCE_KEY, GUIDANCE_DISTANCE_VAR.get())
+    config.set(AUTO_UPDATE_KEY, str(1 if AUTO_UPDATE_VAR.get() else 0))
+    config.set(AUTO_REMOVE_BACKUPS_KEY, str(1 if AUTO_REMOVE_BACKUPS_VAR.get() else 0))
+    
     overlay.set_overlay_settings(ROWS_VAR.get(), LEFT_VAR.get())
     
     # Update heading guidance threshold if it exists

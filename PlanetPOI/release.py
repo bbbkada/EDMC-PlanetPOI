@@ -38,7 +38,7 @@ def safe_log(level, message):
 
 class ClientVersion:
     """Version information for the plugin"""
-    ver = "1.7.2"  # Update this with each release
+    ver = "1.7.4"  # Update this with each release
     client_version = f"EDMC-PlanetPOI.{ver}"
 
     @classmethod
@@ -109,8 +109,6 @@ class Release(Frame):
         anchor = tk.NW
 
         Frame.__init__(self, parent)
-
-        self.auto = tk.IntVar(value=config.get_int("PlanetPOI_AutoUpdate", default=1))
 
         self.columnconfigure(1, weight=1)
         # Start hidden - only show if update is needed
@@ -212,7 +210,8 @@ class Release(Frame):
         else:
             # New version available
             safe_log('info', f"New version available: {self.latest.get('tag_name')}")
-            if self.auto.get() == 1:
+            auto_update_str = config.get_str("planetpoi_auto_update")
+            if auto_update_str == "1":
                 # Auto-update enabled - install silently
                 safe_log('info', "Auto-update enabled, starting installation")
                 self.installer()
@@ -225,30 +224,33 @@ class Release(Frame):
                 self.button.grid()
                 self.grid()
 
-    def plugin_prefs(self, parent, cmdr, is_beta, gridrow):
-        """Create preferences UI"""
-        self.auto = tk.IntVar(value=config.get_int("PlanetPOI_AutoUpdate", default=1))
-
+    def plugin_prefs(self, parent, cmdr, is_beta, gridrow, auto_update_var, auto_remove_backups_var):
+        """Create preferences UI using passed IntVars from load.py"""
         frame = nb.Frame(parent)
-        frame.columnconfigure(2, weight=1)
+        frame.columnconfigure(2, weight=1)  # Column 2 expands to push version right
         frame.grid(row=gridrow, column=0, sticky="NSEW")
         
         nb.Checkbutton(
             frame, 
             text="Auto Update This Plugin", 
-            variable=self.auto
+            variable=auto_update_var
         ).grid(row=0, column=0, sticky="NW")
         
-        nb.Label(
+        nb.Checkbutton(
             frame, 
-            text=f"(v{ClientVersion.version()})"
-        ).grid(row=0, column=1, sticky="NW", padx=(5, 0))
+            text="Auto Remove Old Backups", 
+            variable=auto_remove_backups_var
+        ).grid(row=0, column=1, sticky="NW", padx=(10, 0))
+        
+        # Version number as hyperlink to repository, right-aligned
+        HyperlinkLabel(
+            frame,
+            text=f"v{ClientVersion.version()}",
+            url="https://github.com/bbbkada/EDMC-PlanetPOI",
+            anchor=tk.E
+        ).grid(row=0, column=3, sticky="NE")
 
         return frame
-
-    def prefs_changed(self, cmdr, is_beta):
-        """Save preferences"""
-        config.set("PlanetPOI_AutoUpdate", self.auto.get())
 
     def click_installer(self):
         """Handle manual install button click"""
@@ -390,6 +392,11 @@ class Release(Frame):
             # Keep the .disabled backup directory for user reference
             safe_log('info', f"Backup created at {backup_dir} (.disabled prevents loading as plugin)")
             
+            # Auto-remove old backups if enabled
+            auto_remove_str = config.get_str("planetpoi_auto_remove_backups")
+            if auto_remove_str == "1":
+                self.remove_old_backups()
+            
             safe_log('info', f"Upgrade to {tag_name} complete - please restart EDMC")
             Release.installed = True
             return True
@@ -409,10 +416,32 @@ class Release(Frame):
             self.hyperlink["text"] = f"Upgrade failed - {str(e)}"
             return False
 
+    def remove_old_backups(self):
+        """Remove old .disabled backup directories"""
+        try:
+            plugins_dir = os.path.dirname(Release.plugin_dir)
+            plugin_basename = os.path.basename(Release.plugin_dir)
+            
+            safe_log('debug', f"Looking for old backups in {plugins_dir}")
+            
+            for item in os.listdir(plugins_dir):
+                # Match pattern: EDMC-PlanetPOI.X.Y.Z.disabled
+                if item.startswith(plugin_basename + ".") and item.endswith(".disabled"):
+                    backup_path = os.path.join(plugins_dir, item)
+                    safe_log('info', f"Removing old backup: {backup_path}")
+                    try:
+                        shutil.rmtree(backup_path)
+                        safe_log('info', f"Successfully removed {item}")
+                    except Exception as e:
+                        safe_log('error', f"Failed to remove backup {item}: {e}")
+        except Exception as e:
+            safe_log('error', f"Failed to scan for old backups: {e}")
+
     @classmethod
     def get_auto(cls):
         """Get auto-update setting"""
-        return config.get_int("PlanetPOI_AutoUpdate", default=1)
+        auto_update_str = config.get_str("planetpoi_auto_update")
+        return 1 if auto_update_str == "1" else 0
 
     @classmethod
     def plugin_start(cls, plugin_dir):
