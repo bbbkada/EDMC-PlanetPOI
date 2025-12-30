@@ -4,11 +4,12 @@ Module for managing EDMC-PlanetPOI releases and auto-updates
 
 try:
     import tkinter as tk
-    from tkinter import Frame
+    from tkinter import Frame, messagebox
     from io import BytesIO
 except:
     import Tkinter as tk
     from Tkinter import Frame
+    import tkMessageBox as messagebox
 
 import json
 import myNotebook as nb
@@ -290,11 +291,21 @@ class Release(Frame):
 
     def click_installer(self):
         """Handle manual install button click"""
-        # Just run installer - no messages shown in GUI
-        self.installer()
+        # Run installer and show dialog if successful
+        success = self.installer(manual_update=True)
+        if success:
+            messagebox.showinfo(
+                "Update Complete",
+                "The plugin has been updated successfully.\n\n"
+                "Please restart EDMC for the changes to take effect."
+            )
 
-    def installer(self):
-        """Download and install new version"""
+    def installer(self, manual_update=False):
+        """Download and install new version
+        
+        Args:
+            manual_update: If True, this is a manual update (not auto-update)
+        """
         tag_name = self.latest.get("tag_name")
         
         if not tag_name:
