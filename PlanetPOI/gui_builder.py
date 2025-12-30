@@ -9,8 +9,8 @@ import myNotebook as nb
 from tkinter import ttk
 from config import config
 from theme import theme
-from calculations import calculate_bearing_and_distance, format_distance_with_unit
-from poi_manager import get_full_body_name, get_all_pois_flat
+from PlanetPOI.calculations import calculate_bearing_and_distance, format_distance_with_unit
+from PlanetPOI.poi_manager import get_full_body_name, get_all_pois_flat
 import functools
 import l10n
 
@@ -29,7 +29,7 @@ def init_gui_builder(globals_getter, callbacks_getter):
 
 
 def create_scrolled_frame(parent):
-    """Create a scrollable frame"""
+    """Create a scrollable frame - returns a container frame that should be gridded by caller"""
     try:
         bg = parent.cget("background")
     except Exception:
@@ -38,8 +38,11 @@ def create_scrolled_frame(parent):
         except Exception:
             bg = "#ffffff"
 
-    canvas = tk.Canvas(parent, borderwidth=0, highlightthickness=0, background=bg)
-    scrollbar = tk.Scrollbar(parent, orient="vertical", command=canvas.yview)
+    # Create container frame that will be gridded by caller
+    container = tk.Frame(parent, background=bg)
+    
+    canvas = tk.Canvas(container, borderwidth=0, highlightthickness=0, background=bg, height=400)
+    scrollbar = tk.Scrollbar(container, orient="vertical", command=canvas.yview)
     scroll_frame = tk.Frame(canvas, background=bg)
 
     scroll_frame_id = canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
@@ -47,19 +50,29 @@ def create_scrolled_frame(parent):
 
     def _on_frame_configure(event):
         canvas.configure(scrollregion=canvas.bbox("all"))
+        # Also update canvas window width to match scroll_frame width
+        canvas.itemconfig(scroll_frame_id, width=scroll_frame.winfo_reqwidth())
+
+    def _on_canvas_configure(event):
+        # Update the scroll_frame width to fill the canvas
+        canvas.itemconfig(scroll_frame_id, width=event.width)
 
     def _on_mousewheel(event):
         canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
     scroll_frame.bind("<Configure>", _on_frame_configure)
+    canvas.bind("<Configure>", _on_canvas_configure)
     canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
     canvas.grid(row=0, column=0, sticky="nsew")
     scrollbar.grid(row=0, column=1, sticky="ns")
-    parent.grid_rowconfigure(0, weight=1)
-    parent.grid_columnconfigure(0, weight=1)
+    container.grid_rowconfigure(0, weight=1)
+    container.grid_columnconfigure(0, weight=1)
 
-    return scroll_frame
+    # Store reference to inner frame so caller can add widgets to it
+    container.inner_frame = scroll_frame
+    
+    return container
 
 
 def build_plugin_content(frame):

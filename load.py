@@ -10,25 +10,25 @@ import json
 import os
 import base64
 import urllib.parse
-import overlay  # overlay.py i samma katalog
-from AutoCompleter import AutoCompleter
-from heading_guidance import HeadingGuidance
-import release
-from release import ClientVersion, Release
+from PlanetPOI import overlay  # overlay.py i PlanetPOI-mappen
+from PlanetPOI.AutoCompleter import AutoCompleter
+from PlanetPOI.heading_guidance import HeadingGuidance
+from PlanetPOI import release
+from PlanetPOI.release import ClientVersion, Release
 
 # Import from new modules
-from calculations import (
+from PlanetPOI.calculations import (
     calculate_bearing_and_distance,
     format_body_name,
     format_distance_with_unit,
     scale_geometry,
     safe_int
 )
-import poi_manager
-import guidance_manager
-import context_menus
-import dialogs
-import gui_builder
+from PlanetPOI import poi_manager
+from PlanetPOI import guidance_manager
+from PlanetPOI import context_menus
+from PlanetPOI import dialogs
+from PlanetPOI import gui_builder
 
 plugin_tl = functools.partial(l10n.translations.tl, context=__file__)
 
@@ -1000,6 +1000,9 @@ def plugin_app(parent, cmdr=None, is_beta=None):
     container_frame = tk.Frame(parent)
     container_frame.grid(row=0, column=0, columnspan=2, sticky="nsew")
     
+    # Configure container to expand horizontally
+    container_frame.grid_columnconfigure(0, weight=1)
+    
     # Add release notification widget at the top
     RELEASE_FRAME = Release(container_frame, ClientVersion.version(), 0)
     theme.update(RELEASE_FRAME)
@@ -1022,15 +1025,16 @@ def plugin_app(parent, cmdr=None, is_beta=None):
 def plugin_prefs(parent, cmdr, is_beta):
     outer_frame = nb.Frame(parent)
     outer_frame.columnconfigure(0, weight=1)
+    outer_frame.rowconfigure(1, weight=1)  # Make scroll container expand
     
     # Add release update settings at the top (row 0)
     if RELEASE_FRAME:
         RELEASE_FRAME.plugin_prefs(outer_frame, cmdr, is_beta, 0)
     
     # Add main plugin settings below (row 1)
-    scroll_frame = create_scrolled_frame(outer_frame)
-    scroll_frame.grid(row=1, column=0, sticky="NSEW")
-    build_plugin_ui(scroll_frame)
+    scroll_container = create_scrolled_frame(outer_frame)
+    scroll_container.grid(row=1, column=0, sticky="NSEW")
+    build_plugin_ui(scroll_container.inner_frame)
     
     return outer_frame
 

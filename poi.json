@@ -101,7 +101,7 @@
     "body": "1 b",
     "lat": "",
     "lon": "",
-    "description": "Jameson",
+    "description": "Jameson crashsite",
     "notes": "Stuff and stuff",
     "active": true
   },
@@ -131,7 +131,7 @@
             "lon": "",
             "description": "Just the system",
             "notes": "",
-            "active": true
+            "active": false
           }
         ]
       }

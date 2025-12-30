@@ -4,7 +4,7 @@ import requests
 import threading
 import tkinter as tk
 
-from PlaceHolder import PlaceHolder
+from PlanetPOI.PlaceHolder import PlaceHolder
 
 
 class AutoCompleter(PlaceHolder):

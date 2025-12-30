@@ -5,9 +5,9 @@ Contains all dialog windows (add POI, move, delete, share, etc.)
 
 import tkinter as tk
 import tkinter.messagebox as mb
-from calculations import scale_geometry, format_body_name
-from poi_manager import split_system_and_body
-from AutoCompleter import AutoCompleter
+from PlanetPOI.calculations import scale_geometry, format_body_name
+from PlanetPOI.poi_manager import split_system_and_body
+from PlanetPOI.AutoCompleter import AutoCompleter
 import functools
 import l10n
 

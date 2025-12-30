@@ -20,7 +20,7 @@ def init_context_menus(poi_getter, callbacks_getter):
 
 def show_poi_context_menu(event, tree, item, poi_or_folder):
     """Show context menu for POI tree item"""
-    from poi_manager import get_all_pois_flat, ALL_POIS
+    from PlanetPOI.poi_manager import get_all_pois_flat, ALL_POIS
     
     callbacks = get_callbacks()
     
@@ -61,7 +61,7 @@ def show_poi_context_menu(event, tree, item, poi_or_folder):
 
 def toggle_poi_active(poi, tree):
     """Toggle active state of POI"""
-    from poi_manager import save_pois, ALL_POIS
+    from PlanetPOI.poi_manager import save_pois, ALL_POIS
     
     poi["active"] = not poi.get("active", True)
     save_pois(ALL_POIS)

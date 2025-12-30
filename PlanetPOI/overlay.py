@@ -1,15 +1,25 @@
 # overlay.py
 import sys
 
+# Store module reference - works regardless of whether imported as "overlay" or "PlanetPOI.overlay"
 this = sys.modules[__name__]
+
+# Initialize module-level variables
+overlay = None
+overlay_available = False
 
 try:
     from edmcoverlay import Overlay
-    this.overlay = Overlay()
-    this.overlay.connect()
+    overlay = Overlay()
+    overlay.connect()
+    overlay_available = True
+    # Also set on this for backward compatibility
+    this.overlay = overlay
     this.overlay_available = True
 except Exception as e:
     print(f"Unable to load EDMCOverlay: {e}")
+    overlay = None
+    overlay_available = False
     this.overlay = None
     this.overlay_available = False
 
@@ -43,7 +53,7 @@ def set_overlay_settings(rows, margin):
     OVERLAY_LEFT_MARGIN = int(margin)
 
 def show_poi_rows(poi_texts, color="#ff7100"):
-    global OVERLAY_MAX_ROWS, OVERLAY_LEFT_MARGIN
+    global OVERLAY_MAX_ROWS, OVERLAY_LEFT_MARGIN, overlay
     """
     Shows one row in overlay for each POI (max rows and left alignment from settings).
     Clears excess old rows.
@@ -57,7 +67,7 @@ def show_poi_rows(poi_texts, color="#ff7100"):
     for idx, text in enumerate(poi_texts):
         y_pos = ROW_Y_START + idx * ROW_Y_STEP
         message_id = f"poi_{idx}"
-        this.overlay.send_message(
+        overlay.send_message(
             msgid=message_id,
             text=text,
             color=color,
@@ -71,7 +81,7 @@ def show_poi_rows(poi_texts, color="#ff7100"):
     for idx in range(len(poi_texts), OVERLAY_MAX_ROWS):
         y_pos = ROW_Y_START + idx * ROW_Y_STEP
         message_id = f"poi_{idx}"
-        this.overlay.send_message(
+        overlay.send_message(
             msgid=message_id,
             text="",
             color="#000000",
@@ -82,7 +92,7 @@ def show_poi_rows(poi_texts, color="#ff7100"):
         )
 
 def show_poi_rows_with_colors(poi_texts_with_colors):
-    global OVERLAY_MAX_ROWS, OVERLAY_LEFT_MARGIN
+    global OVERLAY_MAX_ROWS, OVERLAY_LEFT_MARGIN, overlay
     """
     Shows POI rows with different colors. First POI (target) is orange, rest are gray.
     
@@ -100,7 +110,7 @@ def show_poi_rows_with_colors(poi_texts_with_colors):
         message_id = f"poi_{idx}"
         # Target POI is orange, others are gray
         color = "#ff7100" if is_target else "#888888"
-        this.overlay.send_message(
+        overlay.send_message(
             msgid=message_id,
             text=text,
             color=color,
@@ -114,7 +124,7 @@ def show_poi_rows_with_colors(poi_texts_with_colors):
     for idx in range(len(poi_texts_with_colors), OVERLAY_MAX_ROWS):
         y_pos = ROW_Y_START + idx * ROW_Y_STEP
         message_id = f"poi_{idx}"
-        this.overlay.send_message(
+        overlay.send_message(
             msgid=message_id,
             text="",
             color="#000000",
@@ -128,8 +138,9 @@ def show_message(message_id, text, color="#ff7100", x=2, y=2, size=8, font_weigh
     """
     Send any overlay row (for advanced custom overlays).
     """
+    global overlay
     if ensure_overlay():
-        this.overlay.send_message(
+        overlay.send_message(
             msgid=message_id,
             text=text,
             color=color,
@@ -161,12 +172,15 @@ def clear_all_poi_rows():
         )
 
 def ensure_overlay():
-    if getattr(this, "overlay_available", False):
+    global overlay, overlay_available
+    if overlay_available:
         return True
     try:
         from edmcoverlay import Overlay
-        this.overlay = Overlay()
-        this.overlay.connect()
+        overlay = Overlay()
+        overlay.connect()
+        overlay_available = True
+        this.overlay = overlay
         this.overlay_available = True
         if hasattr(this, "_overlay_warned"):
             del this._overlay_warned   # Reset warning if we successfully reconnected!
@@ -176,6 +190,8 @@ def ensure_overlay():
         if not hasattr(this, "_overlay_warned") or not this._overlay_warned:
             print(f"Unable to load EDMCOverlay: {e}")
             this._overlay_warned = True
+        overlay = None
+        overlay_available = False
         this.overlay = None
         this.overlay_available = False
         return False

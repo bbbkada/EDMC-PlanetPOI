@@ -31,7 +31,7 @@ logger = logging.getLogger(f"{appname}.{plugin_name}")
 
 class ClientVersion:
     """Version information for the plugin"""
-    ver = "1.7.1"  # Update this with each release
+    ver = "1.7.2"  # Update this with each release
     client_version = f"EDMC-PlanetPOI.{ver}"
 
     @classmethod
@@ -105,7 +105,7 @@ class Release(Frame):
         self.installed = False
 
         self.auto = tk.IntVar(value=config.get_int("PlanetPOI_AutoUpdate", default=1))
-        self.rmbackup = tk.IntVar(value=config.get_int("PlanetPOI_RemoveBackup", default=1))
+        self.rmbackup = tk.IntVar(value=config.get_int("PlanetPOI_RemoveBackup", default=0))
 
         self.columnconfigure(1, weight=1)
         self.grid(row=gridrow, column=0, sticky="NSEW", columnspan=2)
@@ -212,9 +212,8 @@ class Release(Frame):
             # Current version, hide the release info
             self.grid_remove()
         elif current > release:
-            # Experimental/dev version
-            self.hyperlink["text"] = f"Experimental Release {self.release}"
-            self.grid()
+            # Experimental/dev version - hide the widget instead of showing experimental message
+            self.grid_remove()
         else:
             # New version available
             if self.auto.get() == 1:
@@ -235,7 +234,7 @@ class Release(Frame):
     def plugin_prefs(self, parent, cmdr, is_beta, gridrow):
         """Create preferences UI"""
         self.auto = tk.IntVar(value=config.get_int("PlanetPOI_AutoUpdate", default=1))
-        self.rmbackup = tk.IntVar(value=config.get_int("PlanetPOI_RemoveBackup", default=1))
+        self.rmbackup = tk.IntVar(value=config.get_int("PlanetPOI_RemoveBackup", default=0))
 
         frame = nb.Frame(parent)
         frame.columnconfigure(2, weight=1)

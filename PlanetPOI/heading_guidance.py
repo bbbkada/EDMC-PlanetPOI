@@ -10,7 +10,7 @@ Användning:
 import sys
 import os
 import math
-import overlay  # Använd samma overlay-instans som resten av pluginen
+from PlanetPOI import overlay  # Använd samma overlay-instans som resten av pluginen
 
 
 class HeadingGuidance:
@@ -31,7 +31,7 @@ class HeadingGuidance:
         if not overlay.ensure_overlay():
             self.overlay = None
         else:
-            self.overlay = overlay.this.overlay
+            self.overlay = overlay.overlay
         self.center_x = center_x
         self.center_y = center_y
         

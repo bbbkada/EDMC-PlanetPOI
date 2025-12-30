@@ -43,7 +43,7 @@ def update_guidance_widgets():
         False: Conditions not met for showing guidance (no action needed)
         "rebuild": Widgets need to be created OR removed - trigger full GUI rebuild
     """
-    from calculations import calculate_bearing_and_distance, format_distance_with_unit
+    from PlanetPOI.calculations import calculate_bearing_and_distance, format_distance_with_unit
     import tkinter as tk
     
     config = get_config()
@@ -67,7 +67,7 @@ def update_guidance_widgets():
         last_body and last_heading is not None):
         
         # Find first active POI
-        from poi_manager import get_full_body_name, get_all_pois_flat, ALL_POIS
+        from PlanetPOI.poi_manager import get_full_body_name, get_all_pois_flat, ALL_POIS
         matching_pois = [poi for poi in get_all_pois_flat(ALL_POIS) if get_full_body_name(poi) == last_body]
         first_active_poi = None
         for poi in matching_pois:
@@ -113,7 +113,7 @@ def update_guidance_widgets():
     
     # At this point: widgets exist AND should exist - update them
     # Re-fetch the data we need (already calculated above but in different scope)
-    from poi_manager import get_full_body_name, get_all_pois_flat, ALL_POIS
+    from PlanetPOI.poi_manager import get_full_body_name, get_all_pois_flat, ALL_POIS
     matching_pois = [poi for poi in get_all_pois_flat(ALL_POIS) if get_full_body_name(poi) == last_body]
     first_active_poi = None
     for poi in matching_pois:
