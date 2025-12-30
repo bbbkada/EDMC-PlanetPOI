@@ -427,13 +427,14 @@ class Release(Frame):
             shutil.rmtree(new_plugin_dir)
             safe_log('debug', "Temporary directory removed")
             
-            # Keep the .disabled backup directory for user reference
-            safe_log('info', f"Backup created at {backup_dir} (.disabled prevents loading as plugin)")
-            
             # Auto-remove old backups if enabled
             auto_remove_str = config.get_str("planetpoi_auto_remove_backups")
             if auto_remove_str == "1":
+                safe_log('info', "Auto-remove backups enabled - removing all backup directories")
                 self.remove_old_backups()
+            else:
+                # Keep the .disabled backup directory for user reference
+                safe_log('info', f"Backup created at {backup_dir} (.disabled prevents loading as plugin)")
             
             safe_log('info', f"Upgrade to {tag_name} complete - please restart EDMC")
             Release.installed = True
