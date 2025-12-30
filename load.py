@@ -80,6 +80,7 @@ last_heading = None  # Current heading from dashboard
 # Heading guidance instance for graphical arrows
 heading_guidance = None
 within_2km_zone = False  # Track if we're within 2km to show checkmark only once
+gui_guidance_visible = False  # Track if GUI guidance widgets are currently shown
 
 # Settings table sorting
 SORT_COLUMN = "body"  # Default sort column: "body", "lat", "lon", "description"
@@ -1255,7 +1256,7 @@ def prefs_changed(cmdr, is_beta):
 
 def update_overlay_for_current_position():
     """Update overlay based on current position. Called after adding/editing POI or from dashboard updates."""
-    global OVERLAY_INFO_TEXT, OVERLAY_INFO_LABEL, within_2km_zone
+    global OVERLAY_INFO_TEXT, OVERLAY_INFO_LABEL, within_2km_zone, gui_guidance_visible
     
     # If we don't have valid position data, clear overlay
     if last_lat is None or last_lon is None or not last_body:
@@ -1358,7 +1359,7 @@ def update_overlay_for_current_position():
         OVERLAY_INFO_TEXT = ""
 
 def dashboard_entry(cmdr, is_beta, entry):
-    global last_lat, last_lon, last_body, last_altitude, last_planet_radius, last_heading, CURRENT_SYSTEM, OVERLAY_INFO_TEXT, within_2km_zone
+    global last_lat, last_lon, last_body, last_altitude, last_planet_radius, last_heading, CURRENT_SYSTEM, OVERLAY_INFO_TEXT, within_2km_zone, gui_guidance_visible
 
     altitude = entry.get("Altitude") or 0
     lat = entry.get("Latitude")
@@ -1393,6 +1394,7 @@ def dashboard_entry(cmdr, is_beta, entry):
             last_body = None
             last_heading = None
             within_2km_zone = False  # Reset checkmark flag
+            gui_guidance_visible = False  # Reset GUI guidance state
             OVERLAY_INFO_TEXT = ""
             overlay.clear_all_poi_rows()
             if heading_guidance:
@@ -1402,6 +1404,7 @@ def dashboard_entry(cmdr, is_beta, entry):
     
     # Rebuild GUI only if body changed or first coords received
     if body_changed or first_coords:
+        gui_guidance_visible = False  # Reset GUI guidance state on body/coords change
         redraw_plugin_app()
     
     # Update overlay for current position (does not rebuild GUI)
@@ -1436,9 +1439,19 @@ def dashboard_entry(cmdr, is_beta, entry):
                             display_text = f"{desc} - {round(bearing)}°/ {show_dist:.1f}{unit}"
                         FIRST_POI_LABEL.config(text=display_text)
                     
-                    # Update guidance widgets if they exist
+                    # Update guidance widgets if they exist, or rebuild GUI if state changed
                     guidance_distance = config.get_int(GUIDANCE_DISTANCE_KEY, default=2000)
-                    if distance >= guidance_distance and GUIDANCE_CENTER_LABEL is not None:
+                    should_show_guidance = distance >= guidance_distance
+                    
+                    # Check if GUI guidance state needs to change
+                    if should_show_guidance != gui_guidance_visible:
+                        # State changed - trigger full GUI rebuild to add/remove widgets
+                        gui_guidance_visible = should_show_guidance
+                        redraw_plugin_app()
+                        return  # GUI rebuild will handle everything
+                    
+                    # GUI state is correct - just update widget content if widgets exist
+                    if should_show_guidance and GUIDANCE_CENTER_LABEL is not None:
                         # Calculate deviation
                         guidance_threshold = config.get_int(GUIDANCE_THRESHOLD_KEY, default=4)
                         deviation = bearing - last_heading
@@ -1459,14 +1472,6 @@ def dashboard_entry(cmdr, is_beta, entry):
                                 num_arrows = int(arrow_fraction * 4) + 1
                                 num_arrows = min(num_arrows, 4)
                         
-                        # Update guidance labels
-                        left_arrows = "<" * num_arrows if deviation < -guidance_threshold else ""
-                        GUIDANCE_LEFT_LABEL.config(text=left_arrows)
-                        
-                        if unit == "m":
-                            center_text = f"{round(bearing)}°/ {round(show_dist)}{unit}"
-                        else:
-                            center_text = f"{round(bearing)}°/ {show_dist:.1f}{unit}"
                         # Update guidance labels
                         left_arrows = "<" * num_arrows if deviation < -guidance_threshold else ""
                         GUIDANCE_LEFT_LABEL.config(text=left_arrows)
