@@ -39,7 +39,7 @@ def safe_log(level, message):
 
 class ClientVersion:
     """Version information for the plugin"""
-    ver = "1.7.2"  # Update this with each release
+    ver = "1.7.4"  # Update this with each release
     client_version = f"EDMC-PlanetPOI.{ver}"
 
     @classmethod
@@ -357,14 +357,21 @@ class Release(Frame):
 
             safe_log('debug', f"Downloaded {len(download.content)} bytes")
             
-            # Extract zip file
+            # Extract zip file - EXCLUDING poi.json to preserve user data
             safe_log('debug', "Extracting ZIP file...")
             z = zipfile.ZipFile(BytesIO(download.content))
             extract_to = os.path.dirname(Release.plugin_dir)
             safe_log('debug', f"Extracting to: {extract_to}")
             safe_log('debug', f"ZIP contains: {z.namelist()[:5]}")  # Show first 5 files
-            z.extractall(extract_to)
-            safe_log('debug', "ZIP extraction complete")
+            
+            # Extract all files EXCEPT poi.json - user data must never be overwritten
+            for member in z.namelist():
+                if not member.endswith('poi.json'):
+                    z.extract(member, extract_to)
+                else:
+                    safe_log('info', f"Skipping extraction of {member} - preserving user data")
+            
+            safe_log('debug', "ZIP extraction complete (poi.json excluded)")
             
             # GitHub creates a folder named "EDMC-PlanetPOI-{tag_name}" - rename it to temp name
             extracted_dir = os.path.join(extract_to, f"EDMC-PlanetPOI-{tag_name}")
@@ -396,9 +403,25 @@ class Release(Frame):
 
         # Create backup of current plugin directory with old version number and .disabled suffix
         # This prevents EDMC from loading it as a duplicate plugin
+        # Normalize plugin directory name (remove version suffix if present) for consistent backup naming
+        import re
+        plugin_basename = os.path.basename(Release.plugin_dir)
+        # Remove version suffix if present (e.g., "EDMC-PlanetPOI-1.7.3" -> "EDMC-PlanetPOI")
+        # Match pattern: EDMC-PlanetPOI followed by dash and version number (with optional 'v' prefix)
+        version_pattern = re.compile(r'^(EDMC-PlanetPOI)-v?\d+\.\d+\.\d+$', re.IGNORECASE)
+        if version_pattern.match(plugin_basename):
+            normalized_basename = "EDMC-PlanetPOI"
+            safe_log('debug', f"Detected versioned plugin directory: {plugin_basename} -> {normalized_basename}")
+        else:
+            normalized_basename = plugin_basename
+        
         old_version = ClientVersion.version()
-        backup_dir = f"{Release.plugin_dir}.{old_version}.disabled"
+        backup_dir = os.path.join(
+            os.path.dirname(Release.plugin_dir),
+            f"{normalized_basename}.{old_version}.disabled"
+        )
         safe_log('debug', f"Creating backup with .disabled suffix: {backup_dir}")
+        safe_log('debug', f"Original dir: {Release.plugin_dir}, normalized: {normalized_basename}")
         
         try:
             # Remove old backup if it exists
@@ -463,14 +486,23 @@ class Release(Frame):
     def remove_old_backups(self):
         """Remove old .disabled backup directories"""
         try:
+            import re
             plugins_dir = os.path.dirname(Release.plugin_dir)
             plugin_basename = os.path.basename(Release.plugin_dir)
             
+            # Normalize basename (remove version suffix if present)
+            version_pattern = re.compile(r'^(EDMC-PlanetPOI)-v?\d+\.\d+\.\d+$', re.IGNORECASE)
+            if version_pattern.match(plugin_basename):
+                normalized_basename = "EDMC-PlanetPOI"
+            else:
+                normalized_basename = plugin_basename
+            
             safe_log('debug', f"Looking for old backups in {plugins_dir}")
+            safe_log('debug', f"Searching for pattern: {normalized_basename}.*.disabled")
             
             for item in os.listdir(plugins_dir):
                 # Match pattern: EDMC-PlanetPOI.X.Y.Z.disabled
-                if item.startswith(plugin_basename + ".") and item.endswith(".disabled"):
+                if item.startswith(normalized_basename + ".") and item.endswith(".disabled"):
                     backup_path = os.path.join(plugins_dir, item)
                     safe_log('info', f"Removing old backup: {backup_path}")
                     try:
