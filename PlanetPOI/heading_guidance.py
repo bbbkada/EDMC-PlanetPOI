@@ -278,51 +278,30 @@ class HeadingGuidance:
     
     def _draw_center_circle(self, deviation=0):
         """
-        Draws a fine-tuning bar that grows from center based on deviation
+        Draws a fixed-width bar that moves left/right based on deviation
         
         Args:
             deviation: Current deviation in degrees (positive = too far right, negative = too far left)
         """
-        # Center reference line - always centered
-        center_line_width = 3
-        center_line_height = 50
+        # Fine-tuning bar dimensions - fixed width
+        width = 50  # Fixed width
+        height = 32
+        max_offset = 50  # Maximum pixels to move left/right
         rect_offset_y = 16  # Move rectangle down 16px
         
-        # Fine-tuning bar dimensions
-        max_width = 30  # Maximum width at full tolerance
-        height = 32
-        
-        # Position center line to align with top of green block
-        self.overlay.send_shape(
-            "heading-center-line",
-            "rect",
-            "#ffffff",  # White center line
-            "#ffffff",
-            self.center_x - center_line_width // 2,
-            self.center_y,  # Align with top of green block
-            center_line_width,
-            center_line_height,
-            self.ttl
-        )
-        
-        # Calculate width based on deviation
-        # Width grows proportionally to deviation
+        # Calculate horizontal offset based on deviation
+        # Negative deviation (too far left) = move bar left
+        # Positive deviation (too far right) = move bar right
         if abs(deviation) > 0:
-            width = int((abs(deviation) / self.on_course_threshold) * max_width)
-            width = max(5, min(max_width, width))  # Minimum 5px, max 30px
+            offset = int((deviation / self.on_course_threshold) * max_offset)
+            offset = max(-max_offset, min(max_offset, offset))  # Clamp to ±50px
         else:
-            width = 5  # Minimum width when perfectly on course
+            offset = 0
         
-        # Calculate X position
-        # Negative deviation (too far left) = grow left from center
-        # Positive deviation (too far right) = grow right from center
-        if deviation < 0:
-            # Grow to the left
-            x_pos = self.center_x - width
-        else:
-            # Grow to the right
-            x_pos = self.center_x
+        # Calculate X position (offset moves bar in same direction as deviation)
+        x_pos = self.center_x - width // 2 + offset
         
+        # Draw green box first
         self.overlay.send_shape(
             "heading-center-rect",
             "rect",
@@ -334,6 +313,41 @@ class HeadingGuidance:
             height,
             self.ttl
         )
+        
+        # Draw T-shaped reference line below green box
+        t_line_width = 3
+        t_horizontal_width = 50
+        t_vertical_height = 20
+        
+        # Bottom of green box
+        green_box_bottom = self.center_y + rect_offset_y + height // 2
+        
+        # Horizontal part of T (50px wide, directly below green box)
+        self.overlay.send_shape(
+            "heading-t-horizontal",
+            "rect",
+            "#ffffff",
+            "#ffffff",
+            self.center_x - t_horizontal_width // 2,
+            green_box_bottom,
+            t_horizontal_width,
+            t_line_width,
+            self.ttl
+        )
+        
+        # Vertical part of T (20px tall, from center of horizontal going down)
+        self.overlay.send_shape(
+            "heading-t-vertical",
+            "rect",
+            "#ffffff",
+            "#ffffff",
+            self.center_x - t_line_width // 2,
+            green_box_bottom,
+            t_line_width,
+            t_vertical_height,
+            self.ttl
+        )
+
     
     def _clear_arrows(self):
         """
@@ -348,8 +362,9 @@ class HeadingGuidance:
         # Clear center rectangle
         self.overlay.send_message("heading-center-rect", "", "", 0, 0, 0)
         
-        # Clear center line
-        self.overlay.send_message("heading-center-line", "", "", 0, 0, 0)
+        # Clear T-shaped reference line
+        self.overlay.send_message("heading-t-horizontal", "", "", 0, 0, 0)
+        self.overlay.send_message("heading-t-vertical", "", "", 0, 0, 0)
         
         # Clear checkmark
         for offset in range(-2, 3):

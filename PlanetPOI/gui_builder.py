@@ -496,6 +496,13 @@ def build_plugin_ui(frame):
         g['POI_VARS'].append(active_var)
         g['POI_REFS'].append(poi)
         
+        # Add trace to save active state immediately when checkbox changes
+        def on_active_change(*args, p=poi, v=active_var):
+            p["active"] = v.get()
+            cb['save_pois']()
+        
+        active_var.trace_add('write', lambda *args, p=poi, v=active_var: on_active_change(p=p, v=v))
+        
         cb_poi.bind("<Button-3>", lambda e, p=poi, av=active_var: cb['show_poi_context_menu'](e, p, frame, av))
 
         # Copy system button
