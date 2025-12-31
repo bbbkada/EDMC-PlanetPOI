@@ -39,7 +39,7 @@ def safe_log(level, message):
 
 class ClientVersion:
     """Version information for the plugin"""
-    ver = "1.7.8"  # Update this with each release
+    ver = "1.7.9"  # Update this with each release
     client_version = f"EDMC-PlanetPOI.{ver}"
 
     @classmethod
@@ -421,9 +421,11 @@ class Release(Frame):
         target_plugin_dir = os.path.join(plugins_parent_dir, "EDMC-PlanetPOI")
         safe_log('debug', f"Target plugin directory: {target_plugin_dir}")
         
-        # Check if current plugin directory has wrong name
-        if Release.plugin_dir != target_plugin_dir:
+        # Check if current plugin directory has wrong name (normalize paths for comparison)
+        if os.path.normpath(Release.plugin_dir) != os.path.normpath(target_plugin_dir):
             safe_log('warning', f"Plugin has wrong name: {plugin_basename} (should be EDMC-PlanetPOI)")
+            safe_log('debug', f"Current path: {Release.plugin_dir}")
+            safe_log('debug', f"Expected path: {target_plugin_dir}")
         
         # Create backup of current plugin directory with old version number and .disabled suffix
         # This prevents EDMC from loading it as a duplicate plugin

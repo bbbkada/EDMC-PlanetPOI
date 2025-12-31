@@ -51,7 +51,7 @@ class HeadingGuidance:
         self.on_course_threshold = on_course_threshold  # Degrees tolerance for being "on course"
         self.max_deviation = 90          # Maximum measured deviation (degrees)
         
-        self.ttl = 5  # Time to live in seconds - longer TTL reduces flickering
+        self.ttl = 15  # Time to live in seconds - longer TTL reduces flickering
     
     def update(self, current_heading, target_heading):
         """
@@ -70,9 +70,9 @@ class HeadingGuidance:
         # Clear old arrows first
         self._clear_arrows()
         
-        # If almost on course - show circle in center
+        # If almost on course - show fine-tuning bar
         if abs(deviation) <= self.on_course_threshold:
-            self._draw_center_circle()
+            self._draw_center_circle(deviation)
         # Otherwise show arrow in correct direction
         elif deviation > 0:
             # Need to turn right (positive deviation)
@@ -196,56 +196,38 @@ class HeadingGuidance:
         arrow_end_x = self.center_x - length
         arrow_y = self.center_y
         
-        # Arrow shaft (rectangle)
+        # Arrow shaft (rectangle) - shortened to end at arrow head base
         shaft_height = 4
+        head_size = self.arrow_head_size
+        shaft_length = length - head_size
         self.overlay.send_shape(
             "heading-arrow-shaft",
             "rect",
             self.arrow_fill,
             self.arrow_fill,
-            arrow_end_x,
+            arrow_end_x + head_size,
             arrow_y - shaft_height // 2,
-            length,
+            shaft_length,
             shaft_height,
             self.ttl
         )
         
-        # Arrow head - filled triangle with denser lines for smoother appearance
-        head_size = self.arrow_head_size
+        # Arrow head - vector triangle pointing left
         
-        # Draw arrow head as multiple horizontal lines for smooth filling
-        for i in range(head_size // 2 + 1):
-            # Calculate line width based on position
-            line_y_top = arrow_y - i
-            line_y_bottom = arrow_y + i
-            line_x_start = arrow_end_x + (i * 2)
-            
-            if i == 0:
-                # Draw tip as a small rectangle
-                self.overlay.send_shape(
-                    f"heading-arrow-head-{i}",
-                    "rect",
-                    self.arrow_fill,
-                    self.arrow_fill,
-                    arrow_end_x,
-                    arrow_y,
-                    2,
-                    1,
-                    self.ttl
-                )
-            else:
-                # Draw horizontal line to fill triangle
-                self.overlay.send_shape(
-                    f"heading-arrow-head-{i}",
-                    "rect",
-                    self.arrow_fill,
-                    self.arrow_fill,
-                    line_x_start,
-                    line_y_top,
-                    1,
-                    (line_y_bottom - line_y_top + 1),
-                    self.ttl
-                )
+        # Create vector triangle - capitalize keys to match C# Graphic class
+        msg = {
+            "id": "heading-arrow-head",
+            "shape": "vect",
+            "color": self.arrow_color,
+            "ttl": self.ttl,
+            "vector": [
+                {"x": arrow_end_x, "y": arrow_y},
+                {"x": arrow_end_x + head_size, "y": arrow_y - head_size // 2},
+                {"x": arrow_end_x + head_size, "y": arrow_y + head_size // 2},
+                {"x": arrow_end_x, "y": arrow_y}
+            ]
+        }
+        self.overlay.send_raw(msg)
     
     def _draw_right_arrow(self, deviation):
         """
@@ -261,8 +243,10 @@ class HeadingGuidance:
         arrow_end_x = self.center_x + length
         arrow_y = self.center_y
         
-        # Arrow shaft (rectangle)
+        # Arrow shaft (rectangle) - shortened to end at arrow head base
         shaft_height = 4
+        head_size = self.arrow_head_size
+        shaft_length = length - head_size
         self.overlay.send_shape(
             "heading-arrow-shaft",
             "rect",
@@ -270,77 +254,86 @@ class HeadingGuidance:
             self.arrow_fill,
             arrow_start_x,
             arrow_y - shaft_height // 2,
-            length,
+            shaft_length,
             shaft_height,
             self.ttl
         )
         
-        # Arrow head - filled triangle with denser lines for smoother appearance
-        head_size = self.arrow_head_size
+        # Arrow head - vector triangle pointing right
         
-        # Draw arrow head as multiple horizontal lines for smooth filling
-        for i in range(head_size // 2 + 1):
-            # Calculate line width based on position
-            line_y_top = arrow_y - i
-            line_y_bottom = arrow_y + i
-            line_x_start = arrow_end_x - (i * 2)
-            
-            if i == 0:
-                # Draw tip as a small rectangle
-                self.overlay.send_shape(
-                    f"heading-arrow-head-{i}",
-                    "rect",
-                    self.arrow_fill,
-                    self.arrow_fill,
-                    arrow_end_x - 2,
-                    arrow_y,
-                    2,
-                    1,
-                    self.ttl
-                )
-            else:
-                # Draw horizontal line to fill triangle
-                self.overlay.send_shape(
-                    f"heading-arrow-head-{i}",
-                    "rect",
-                    self.arrow_fill,
-                    self.arrow_fill,
-                    line_x_start,
-                    line_y_top,
-                    1,
-                    (line_y_bottom - line_y_top + 1),
-                    self.ttl
-                )
+        # Create vector triangle - capitalize keys to match C# Graphic class
+        msg = {
+            "id": "heading-arrow-head",
+            "shape": "vect",
+            "color": self.arrow_color,
+            "ttl": self.ttl,
+            "vector": [
+                {"x": arrow_end_x, "y": arrow_y},
+                {"x": arrow_end_x - head_size, "y": arrow_y - head_size // 2},
+                {"x": arrow_end_x - head_size, "y": arrow_y + head_size // 2},
+                {"x": arrow_end_x, "y": arrow_y}
+            ]
+        }
+        self.overlay.send_raw(msg)
     
-    def _draw_center_circle(self):
+    def _draw_center_circle(self, deviation=0):
         """
-        Draws a filled circle in center when on course
-        """
-        radius = 12  # Reduced from 20
+        Draws a fine-tuning bar that grows from center based on deviation
         
-        # Draw circle using many small rectangles for smooth filling
-        # Draw from center outwards in concentric circles
-        for r in range(radius + 1):
-            # Calculate number of points based on radius for even coverage
-            steps = max(8, int(2 * math.pi * r))
-            
-            for angle in range(0, 360, max(1, 360 // steps)):
-                rad = math.radians(angle)
-                x = self.center_x + int(r * math.cos(rad))
-                y = self.center_y + int(r * math.sin(rad))
-                
-                # Draw a pixel
-                self.overlay.send_shape(
-                    f"heading-center-fill-{r}-{angle}",
-                    "rect",
-                    self.center_fill,
-                    self.center_fill,
-                    x,
-                    y,
-                    1,
-                    1,
-                    self.ttl
-                )
+        Args:
+            deviation: Current deviation in degrees (positive = too far right, negative = too far left)
+        """
+        # Center reference line - always centered
+        center_line_width = 3
+        center_line_height = 50
+        rect_offset_y = 16  # Move rectangle down 16px
+        
+        # Fine-tuning bar dimensions
+        max_width = 30  # Maximum width at full tolerance
+        height = 32
+        
+        # Position center line to align with top of green block
+        self.overlay.send_shape(
+            "heading-center-line",
+            "rect",
+            "#ffffff",  # White center line
+            "#ffffff",
+            self.center_x - center_line_width // 2,
+            self.center_y,  # Align with top of green block
+            center_line_width,
+            center_line_height,
+            self.ttl
+        )
+        
+        # Calculate width based on deviation
+        # Width grows proportionally to deviation
+        if abs(deviation) > 0:
+            width = int((abs(deviation) / self.on_course_threshold) * max_width)
+            width = max(5, min(max_width, width))  # Minimum 5px, max 30px
+        else:
+            width = 5  # Minimum width when perfectly on course
+        
+        # Calculate X position
+        # Negative deviation (too far left) = grow left from center
+        # Positive deviation (too far right) = grow right from center
+        if deviation < 0:
+            # Grow to the left
+            x_pos = self.center_x - width
+        else:
+            # Grow to the right
+            x_pos = self.center_x
+        
+        self.overlay.send_shape(
+            "heading-center-rect",
+            "rect",
+            self.center_color,
+            self.center_fill,
+            x_pos,
+            self.center_y + rect_offset_y - height // 2,
+            width,
+            height,
+            self.ttl
+        )
     
     def _clear_arrows(self):
         """
@@ -349,16 +342,14 @@ class HeadingGuidance:
         # Clear arrows
         self.overlay.send_message("heading-arrow-shaft", "", "", 0, 0, 0)
         
-        # Clear arrow heads
-        for i in range(self.arrow_head_size // 2 + 1):
-            self.overlay.send_message(f"heading-arrow-head-{i}", "", "", 0, 0, 0)
+        # Clear arrow head (single vector shape)
+        self.overlay.send_message("heading-arrow-head", "", "", 0, 0, 0)
         
-        # Clear circle (concentric circles) - must match exactly how it's drawn
-        radius = 12
-        for r in range(radius + 1):
-            steps = max(8, int(2 * math.pi * r))
-            for angle in range(0, 360, max(1, 360 // steps)):
-                self.overlay.send_message(f"heading-center-fill-{r}-{angle}", "", "", 0, 0, 0)
+        # Clear center rectangle
+        self.overlay.send_message("heading-center-rect", "", "", 0, 0, 0)
+        
+        # Clear center line
+        self.overlay.send_message("heading-center-line", "", "", 0, 0, 0)
         
         # Clear checkmark
         for offset in range(-2, 3):
