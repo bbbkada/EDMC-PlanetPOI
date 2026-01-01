@@ -1,0 +1,12 @@
+---
+name: POI Submission (Prefilled)
+about: Used by the PlanetPOI client to open a pre-filled submission.
+title: "[SUBMISSION] "
+labels: poi-submission
+---
+
+<!--
+This template is intentionally minimal.
+The PlanetPOI client will supply the full body via the URL parameters.
+If you are submitting manually, use "POI Submission (Manual)" instead.
+-->
