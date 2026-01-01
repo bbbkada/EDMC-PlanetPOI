@@ -1,0 +1,28 @@
+name: POI Submission (Manual)
+description: Submit a POI without using the client
+title: "[SUBMISSION] "
+labels: ["poi-submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form only if you cannot use the PlanetPOI client submit button.
+
+  - type: input
+    id: cmdr
+    attributes:
+      label: CMDR name
+      placeholder: CmdrExample
+    validations:
+      required: true
+
+  - type: textarea
+    id: poi_json
+    attributes:
+      label: POI JSON (v=1 payload)
+      description: Paste the POI JSON payload here (do not include "active").
+      render: json
+      placeholder: |
+        {"v":1,"system":"HIP 36601","body":"C 3 a","lat":-68.234567,"lon":137.891234,"description":"Crystalline shards (Polonium)"}
+    validations:
+      required: true
