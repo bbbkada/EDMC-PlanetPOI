@@ -1,6 +1,12 @@
 # EDMC Planet POI Plugin
 
-Plugin for [EDMC](https://github.com/EDCD/EDMarketConnector) that helps you save and navigate to Points of Interest (POIs) on planetary surfaces in Elite Dangerous. Perfect for saving interesting locations while exploring, organizing your discoveries, and sharing coordinates with other commanders.
+Plugin for [EDMC](https://github.com/EDCD/EDMarketConnector) that allows you to save and navigate to longitude/latitude positions (POIs) on planetary surfaces in Elite Dangerous.
+
+Easily store important locations such as crystal shard sites or crashed Anaconda wrecks that lack in-game markers, and navigate to them with minimal effort.
+
+PlanetPOI is a true fire-and-forget solution. It automatically activates when you enter a system containing saved POIs and begins guiding you as soon as you approach a planetary body with stored locations.
+
+Ideal for explorers who want to save interesting sites, organize their discoveries, and share precise coordinates with other commanders.
 
 ## Installation
 
