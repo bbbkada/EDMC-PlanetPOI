@@ -4,6 +4,8 @@ Plugin for [EDMC](https://github.com/EDCD/EDMarketConnector) that allows you to 
 
 Easily store important locations such as crystal shard sites or crashed Anaconda wrecks that lack in-game markers, and navigate to them with minimal effort.
 
+Prepopulated with some of the best locations for raw materials, and data.
+
 PlanetPOI is ment to be a fire-and-forget in the background, always ready to save POI's or help you navigate. It automatically activates when you enter a system containing saved POIs and begins guiding you as soon as you approach a planetary body with stored locations.
 
 Ideal for explorers who want to save interesting sites, organize their discoveries, and share precise coordinates with other commanders.
