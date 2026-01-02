@@ -21,8 +21,8 @@ body:
   - type: textarea
     id: poi_json
     attributes:
-      label: POI JSON (v=1)
-      description: The POI payload. Do not include `active`.
+      label: The POI
+      description: The POI payload. Feel free to add extra notes outside the json.
       render: json
       placeholder: |
         {"v":1,"system":"HIP 36601","body":"C 3 a","lat":-68.234567,"lon":137.891234,"description":"Crystalline shards (Polonium)"}
