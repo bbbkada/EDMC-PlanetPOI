@@ -7,8 +7,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        This submission is intended to be created from the PlanetPOI client.
-        Review the prefilled data and click **Submit new issue**.
+        This submission is intended to share a POI of interest for the community.
+        Review the prefilled data and click **Create**.
 
   - type: input
     id: cmdr
