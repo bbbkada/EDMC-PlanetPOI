@@ -292,7 +292,19 @@ def show_add_folder_dialog(frame, parent_children):
     def save_and_close(event=None):
         folder_name = name_var.get().strip()
         if folder_name:
-            cb['create_folder'](parent_children, folder_name)
+            # parent_children can be None (for root level) or a folder dict or a list
+            if parent_children is None:
+                # Add to root level
+                g = get_globals()
+                target_list = g['ALL_POIS']
+            elif isinstance(parent_children, dict) and parent_children.get('type') == 'folder':
+                # Add to folder's children
+                target_list = parent_children.get('children', [])
+            else:
+                # Assume it's already a list
+                target_list = parent_children
+            
+            cb['create_folder'](target_list, folder_name)
             cb['redraw_plugin_app']()
             popup.destroy()
     

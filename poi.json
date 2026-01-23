@@ -146,5 +146,27 @@
     "active": true,
     "system": "Orrere",
     "notes": "Tellerium and lots of other high grade raw materials"
+  },
+  {
+    "type": "folder",
+    "name": "DW3",
+    "children": [
+      {
+        "type": "folder",
+        "name": "Bio",
+        "children": [
+          {
+            "type": "poi",
+            "system": "Eol Prou JG-Y e111",
+            "body": "2 e",
+            "lat": 8.883515,
+            "lon": 155.530762,
+            "description": "(11$) Tubus",
+            "notes": "",
+            "active": true
+          }
+        ]
+      }
+    ]
   }
 ]

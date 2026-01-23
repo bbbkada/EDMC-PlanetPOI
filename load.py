@@ -362,6 +362,7 @@ def _init_modules():
             'show_move_dialog': show_move_dialog,
             'show_share_popup': show_share_popup,
             'confirm_delete_item': confirm_delete_item,
+            'create_folder': create_folder,
             'delete_item': delete_item,
             'move_item': move_item,
             'count_folder_contents': count_folder_contents,
