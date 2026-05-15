@@ -150,25 +150,39 @@ def show_add_poi_dialog(parent_frame, prefill_system=None, edit_poi=None, parent
     def paste_from_clipboard():
         try:
             clipboard_text = dialog.clipboard_get().strip()
-            poi_data = cb['parse_share_url'](clipboard_text)
-            
-            if poi_data:
-                system_name = poi_data.get('system', '')
-                body_part = poi_data.get('body', '')
-                
-                system_entry.set_text(system_name, placeholder_style=False)
-                body_var.set(body_part)
-                lat_var.set(str(poi_data.get('lat', '')))
-                lon_var.set(str(poi_data.get('lon', '')))
-                desc_var.set(poi_data.get('description', ''))
-                notes_text.delete("1.0", tk.END)
-                notes_text.insert("1.0", poi_data.get('notes', ''))
-                
-                status_label.config(text="✓ Loaded from shared link", fg="green")
-            else:
-                status_label.config(text="No valid link found in clipboard", fg="red")
         except Exception:
             status_label.config(text="No link found in clipboard", fg="red")
+            return
+        print(f"PPOI: Clipboard content: {clipboard_text[:200]}")
+        try:
+            poi_data = cb['parse_share_url'](clipboard_text)
+        except Exception as e:
+            print(f"PPOI: parse_share_url error: {e}")
+            import traceback; traceback.print_exc()
+            status_label.config(text=f"Error parsing link: {e}", fg="red")
+            return
+        
+        if not poi_data:
+            status_label.config(text="No valid link found in clipboard", fg="red")
+            return
+        
+        try:
+            system_name = poi_data.get('system', '')
+            body_part = poi_data.get('body', '')
+            
+            system_entry.set_text(system_name, placeholder_style=False)
+            body_var.set(body_part)
+            lat_var.set(str(poi_data.get('lat', '')))
+            lon_var.set(str(poi_data.get('lon', '')))
+            desc_var.set(poi_data.get('description', ''))
+            notes_text.delete("1.0", tk.END)
+            notes_text.insert("1.0", poi_data.get('notes', ''))
+            
+            status_label.config(text="✓ Loaded from shared link", fg="green")
+        except Exception as e:
+            print(f"PPOI: Error populating fields: {e}")
+            import traceback; traceback.print_exc()
+            status_label.config(text=f"Error populating fields: {e}", fg="red")
     
     paste_btn.config(command=paste_from_clipboard)
     

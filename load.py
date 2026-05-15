@@ -367,6 +367,7 @@ def _init_modules():
             'move_item': move_item,
             'count_folder_contents': count_folder_contents,
             'generate_share_url': generate_share_url,
+            'parse_share_url': parse_share_url,
             'remove_poi_obj': remove_poi_obj,
             'save_desc_obj': save_desc_obj,
             'export_pois_to_file': export_pois_to_file,
@@ -1143,7 +1144,6 @@ def parse_share_url(url):
             poi_data['system'] = system_name
             poi_data['body'] = body_part
         else:
-            return None
             return None
         
         return poi_data
