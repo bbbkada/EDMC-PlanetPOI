@@ -178,15 +178,5 @@
     "description": "Guardian Data site",
     "notes": "",
     "active": true
-  },
-  {
-    "type": "poi",
-    "system": "Lhou Mans",
-    "body": "",
-    "lat": "",
-    "lon": "",
-    "description": "",
-    "notes": "",
-    "active": true
   }
 ]
